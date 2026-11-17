@@ -33,6 +33,8 @@
 
 ## 2. Kiến trúc đích và quyền sở hữu
 
+Contract chuẩn triển khai: [architecture-contracts.v1](phase2/contracts/architecture-contracts-v1.md), gồm module/API/ownership, transaction, HTTP/error, idempotency, event và migration reservations. Onboarding composition use case được mô tả đầy đủ ở đó; sơ đồ dưới là tổng quan.
+
 ```mermaid
 flowchart TB
     Web[REST adapters] --> Identity[Identity public API]
@@ -431,7 +433,7 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 |---|---|---|---|
 | C00-TEST | A | VERIFIED: baseline local 111/13 lỗi; sau sửa GitHub 111 PASS | Giữ evidence, A xác nhận phạm vi test; không suy ra benchmark hoàn tất |
 | C00-B | B | TODO | Benchmark baseline hiện tại, A nghiệm thu |
-| C01-A | A | DRAFT: có 4 ADR | A chốt public contracts và trạng thái ADR |
+| C01-A | A | DECIDED / READY FOR A: 4 ADR và public contracts v1 đã soạn | A review/merge để ACCEPTED; xem contract C01-A-r1 |
 | C02-CI | A | MERGED + VERIFIED | CI/rulesets hoạt động; bảo trì theo mỗi SHA |
 | C02-B | B | TODO | Migration và DB integration harness, A review |
 | C03-B / C03-A | B rồi A | TODO | Tách PR và dependency như mục 5 |
