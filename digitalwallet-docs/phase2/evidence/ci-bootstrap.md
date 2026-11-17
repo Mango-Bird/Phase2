@@ -31,6 +31,8 @@ Ngày: 17/11/2026. Người thực hiện: A qua Codex. Người quyết định
 
 ## Cấu hình bảo vệ main — BLOCKED
 
+> Cập nhật 17/11/2026 sau khi chủ repo xác nhận: đã giải quyết bằng hai ruleset active tách riêng quyền cập nhật và CI không bypass. Xem [runbook governance](../runbooks/github-governance.md). Đoạn dưới ghi lại sự kiện bị chặn ban đầu, không còn là trạng thái hiện tại.
+
 Trước phiên này repo không có workflow runs hoặc rulesets. Thao tác yêu cầu PR + required CI cho main đã bị automatic approval review từ chối trước khi thực thi: đề xuất không yêu cầu approval người khác để A tự nghiệm thu, nhưng chưa cưỡng chế được chỉ A merge. Không thay đổi protection và không tìm cách vượt chặn bằng cơ chế khác. Cần A xác nhận cấu hình quyền phù hợp trước khi áp dụng; CI đã chạy không đồng nghĩa CI đã là required check.
 
 Trạng thái bàn giao: workflow/build/test PASS trên candidate đã nêu; branch protection BLOCKED; A chưa ký nghiệm thu và PR chưa merge.
