@@ -1,5 +1,7 @@
 # Digital Wallet - Stress test
 
+> Bộ công cụ kế thừa từ Phase 1, được giữ để tái lập baseline. Chưa cập nhật theo contract API Phase 2. Việc tách load generator khỏi SUT và đánh giá trước–sau được quy định trong [lộ trình Phase 2](../digitalwallet-docs/phase2_implementation_plan.md), các đợt C00 và C11.
+
 ## 1. [Quy trình thực hiện](../digitalwallet-docs/stress-test/Planning.md)
 
 ## 2. Hướng dẫn sử dụng

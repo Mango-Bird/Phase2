@@ -1,186 +1,54 @@
-# Digital Wallet System
+# Digital Wallet — Phase 2
 
-Hệ thống Backend RESTful API cho dịch vụ Ví điện tử. Ứng dụng triển khai theo Hexagonal Architecture, đảm bảo tính độc lập giữa Business và Infrastructure.
+Cải tiến kiến trúc backend ví điện tử theo hướng **Modular Monolith kết hợp Transactional Outbox**, tập trung vào khả năng bảo trì, độ tin cậy, khả năng phục hồi, khả năng quan sát và hiệu năng.
 
----
+Repository hiện chứa mã nguồn kế thừa từ Phase 1 và kế hoạch Phase 2. Kiến trúc đích chưa được triển khai. Nạp/rút tiền hiện là mô phỏng nội bộ.
 
-## 1. Công nghệ sử dụng
+## Kế hoạch triển khai
 
-- **Ngôn ngữ & Nền tảng:** Java, Spring Boot.
-- **Lưu trữ & ORM:** MySQL, Spring Data JPA, Hibernate.
-- **Mapper & Utilities:** MapStruct, Lombok.
-- **API:** OpenAPI.
-- **Kiểm thử:** JUnit, Mockito.
-- **Đóng gói:** Docker.
+- [Lộ trình, checklist, phân công hai người và contract nghiệm thu](digitalwallet-docs/phase2_implementation_plan.md).
+- [Khảo sát mã nguồn và vấn đề hiện trạng](digitalwallet-docs/phase2_assessment.md).
 
----
+Lộ trình tham khảo gồm 6 tuần, 13 đợt sửa C00–C12. Người A phụ trách giao dịch/domain; người B phụ trách nền tảng/kiểm chứng; hai người review chéo. Mỗi đợt sửa cần có bằng chứng nghiệm thu theo contract.
 
-## 2. Kiến trúc hệ thống
+## Cấu trúc repository
 
-Dự án áp dụng Hexagonal Architecture: Business core (`Domain` & `Application`) nằm ở trung tâm, không phụ thuộc vào Framework hay Database. Mọi giao tiếp của Business và Infrastructure đều thông qua Ports và Adapters.
-- Architecture docs: [digitalwallet-docs/architecture](digitalwallet-docs/architecture.md)
-- Đọc thêm về Hexagonal Architecture: https://github.com/thombergs/buckpal | https://huynt.dev/products/kien-truc-ung-dung-web
+| Thư mục | Nội dung |
+|---|---|
+| `digitalwallet-system` | Backend Java 21, Spring Boot, JPA và JWT |
+| `digitalwallet-database` | Schema kế thừa làm đầu vào migration |
+| `digitalwallet-docs` | Kế hoạch Phase 2 và tài liệu baseline |
+| `digitalwallet-stress-test` | Bộ công cụ k6 và script benchmark kế thừa |
 
-```mermaid
-flowchart LR
-    subgraph DrivingAdapters["Inbound Adapters (Web / REST)"]
-        Client[HTTP Client / Swagger] --> Controller[REST Controllers]
-        Controller --> InPort[Inbound Ports / UseCases]
-    end
+## Chạy ứng dụng hiện tại
 
-    subgraph ApplicationCore["Core"]
-        direction TB
-        InPort --> AppService[Application Services]
-        AppService --> DomainModel[Domain Models & Rules]
-        AppService --> OutPort[Outbound Ports / SPI]
-    end
+Yêu cầu Docker và Docker Compose. Tại thư mục gốc, tạo `.env` từ `.env.example`, điền cấu hình phù hợp rồi khởi động:
 
-    subgraph DrivenAdapters["Outbound Adapters (Hạ tầng)"]
-        OutPort --> PersistenceAdapter[Persistence Adapter / JPA]
-        OutPort --> SecurityAdapter[Security Adapter / JWT]
-        PersistenceAdapter --> Database[(MySQL Database)]
-    end
+```powershell
+Copy-Item .env.example .env
+# Điền cấu hình trong .env trước khi chạy lệnh sau.
+docker compose up -d --build
 ```
 
----
+Swagger: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html).
 
-## 3. Đặc tả chức năng & Danh mục API
-
-Hệ thống tập trung vào 4 nhóm nghiệp vụ chính:
-
-```mermaid
-flowchart LR
-    A[Khách / Người dùng] --> B[1. Xác thực<br/>Register / Login]
-    B --> C[2. Quản lý Ví<br/>Số dư / Trạng thái]
-    C --> D[3. Liên kết Ngân hàng<br/>Link / Unlink]
-    C --> E[4. Giao dịch Tài chính<br/>Topup / Withdraw / Transfer]
-    E --> F[(Sổ cái Ledger<br/>Transactions)]
+```powershell
+docker compose logs -f app
+docker compose down
 ```
 
-ERD Schema:
+Chạy bộ test backend với JDK 21:
 
-```mermaid
-erDiagram
-    USERS ||--|| WALLETS : "owns (1:1)"
-    WALLETS ||--o{ LINKED_BANK_ACCOUNTS : "links (1:N)"
-    WALLETS ||--o{ TRANSACTIONS : "source of (1:N)"
-    WALLETS ||--o{ TRANSACTIONS : "target of (1:N)"
-    LINKED_BANK_ACCOUNTS ||--o{ TRANSACTIONS : "funds via (1:N)"
-
-    USERS {
-        BIGINT id PK "AUTO_INCREMENT"
-        VARCHAR(50) username UK "NOT NULL"
-        VARCHAR(255) password_hash "BCrypt hash"
-        VARCHAR(100) full_name "NOT NULL"
-        VARCHAR(100) email UK "NOT NULL"
-        VARCHAR(20) role "ROLE_USER, ROLE_ADMIN"
-        DATETIME(3) created_at "CURRENT_TIMESTAMP(3)"
-    }
-
-    WALLETS {
-        BIGINT id PK "AUTO_INCREMENT"
-        BIGINT user_id FK,UK "NOT NULL"
-        VARCHAR(30) wallet_number UK "NOT NULL"
-        BIGINT balance ">= 0, default 0"
-        VARCHAR(20) status "ACTIVE, FROZEN, CLOSED"
-        BIGINT version "Optimistic locking (@Version)"
-        DATETIME(3) created_at "CURRENT_TIMESTAMP(3)"
-        DATETIME(3) updated_at "ON UPDATE CURRENT_TIMESTAMP(3)"
-    }
-
-    LINKED_BANK_ACCOUNTS {
-        BIGINT id PK "AUTO_INCREMENT"
-        BIGINT wallet_id FK "NOT NULL"
-        VARCHAR(20) bank_code "NOT NULL (VD: VCB, TCB)"
-        VARCHAR(100) bank_name "NOT NULL"
-        VARCHAR(50) account_number_masked "NOT NULL (VD: ******6789)"
-        VARCHAR(100) holder_name "NOT NULL"
-        VARCHAR(20) status "ACTIVE, UNLINKED"
-        DATETIME(3) linked_at "CURRENT_TIMESTAMP(3)"
-        DATETIME(3) unlinked_at "NULL / DATETIME(3)"
-    }
-
-    TRANSACTIONS {
-        BIGINT id PK "AUTO_INCREMENT"
-        VARCHAR(36) reference_code UK "UUID v4 (Idempotency Key)"
-        VARCHAR(20) type "TRANSFER, TOPUP, WITHDRAW"
-        BIGINT source_wallet_id FK "NULLable"
-        BIGINT target_wallet_id FK "NULLable"
-        BIGINT linked_bank_account_id FK "NULLable"
-        BIGINT amount "> 0"
-        VARCHAR(255) description "NULLable"
-        DATETIME(3) created_at "CURRENT_TIMESTAMP(3)"
-    }
+```powershell
+cd digitalwallet-system
+.\gradlew.bat test
 ```
 
-- SwaggerAPI: https://vllddlvh.github.io/SAUETDigitalWallet/digitalwallet-docs/swaggerAPI/
-- API-Contract: [digitalwallet-docs/apicontract](digitalwallet-docs/apicontract.md)
-- Business docs: [digitalwallet-docs/business](digitalwallet-docs/business.md)
-- Database docs: [digitalwallet-docs/dbanalysis](digitalwallet-docs/dbanalysis.md)
+## Tài liệu tham chiếu
 
-### 3.1. Xác thực & Tài khoản (`/api/v1/auth`)
+Các tài liệu dưới đây mô tả nền Phase 1 để kiểm tra tương thích và so sánh trước–sau; chúng không đại diện cho kiến trúc Phase 2 đã triển khai.
 
-| Phương thức | Endpoint                | Quyền hạn | Mô tả                                                                                  |
-| :---------- | :---------------------- | :-------- | :------------------------------------------------------------------------------------- |
-| `POST`      | `/api/v1/auth/register` | Public    | Đăng ký tài khoản mới; tự động khởi tạo ví chính (số dư `0 VND`, trạng thái `ACTIVE`). |
-| `POST`      | `/api/v1/auth/login`    | Public    | Đăng nhập bằng `username` / `password`, trả về JWT Access Token (Bearer).              |
-
-### 3.2. Quản lý Ví điện tử (`/api/v1/wallets`)
-
-| Phương thức | Endpoint             | Quyền hạn     | Mô tả                                                                                             |
-| :---------- | :------------------- | :------------ | :------------------------------------------------------------------------------------------------ |
-| `GET`       | `/api/v1/wallets/me` | Authenticated | Lấy thông tin ví, số ví định danh (`wallet_number`), số dư khả dụng (`balance`) và trạng thái ví. |
-
-### 3.3. Liên kết Ngân hàng (`/api/v1/linked-banks`)
-
-| Phương thức | Endpoint                    | Quyền hạn     | Mô tả                                                                          |
-| :---------- | :-------------------------- | :------------ | :----------------------------------------------------------------------------- |
-| `POST`      | `/api/v1/linked-banks`      | Authenticated | Liên kết tài khoản ngân hàng (mã hóa/che số tài khoản `account_number_masked`). |
-| `GET`       | `/api/v1/linked-banks`      | Authenticated | Lấy danh sách các tài khoản ngân hàng đang kích hoạt (`ACTIVE`) của ví.         |
-| `DELETE`    | `/api/v1/linked-banks/{id}` | Authenticated | Hủy liên kết tài khoản ngân hàng (Soft-delete: cập nhật trạng thái `UNLINKED`). |
-
-### 3.4. Giao dịch Tài chính (`/api/v1/transactions`)
-
-| Phương thức | Endpoint                         | Quyền hạn     | Mô tả                                                                      |
-| :---------- | :------------------------------- | :------------ | :------------------------------------------------------------------------- |
-| `POST`      | `/api/v1/transactions/topup`    | Authenticated | Nạp tiền từ tài khoản ngân hàng liên kết vào ví.                           |
-| `POST`      | `/api/v1/transactions/withdraw` | Authenticated | Rút tiền từ ví về tài khoản ngân hàng liên kết (kiểm tra số dư khả dụng). |
-| `POST`      | `/api/v1/transactions/transfer` | Authenticated | Chuyển tiền nội bộ sang ví khác theo số ví (`target_wallet_number`).       |
-| `GET`       | `/api/v1/transactions`          | Authenticated | Lấy lịch sử giao dịch (nạp, rút, chuyển, nhận tiền) của ví.                |
-
-
----
-## 4. Kiểm thử tải
-
-Bài Stress Test chạy trong 30 phút, tăng tải qua 10 bậc (mỗi bậc thêm 200 tài khoản và 100 RPS) với tổng cộng **315,555 requests**.
-- Báo cáo chi tiết: [digitalwallet-docs/stress-test/Report.md](digitalwallet-docs/stress-test/Report.md)
-- Hướng dẫn thiết lập: [digitalwallet-stress-test/README.md](digitalwallet-stress-test/README.md)
-
-### 4.1. Bảng tổng hợp kết quả
-
-| Chỉ số        | Số lượng | Tỷ lệ  | Nhận xét                                                   |
-| :------------ | :------- | :----- | :--------------------------------------------------------- |
-| Tổng request  | 315,555  | 100%   | 10 bậc tăng tải liên tục trong 30 phút                     |
-| Thành công    | 314,436  | 99.65% | Hệ thống duy trì thông lượng ổn định                       |
-| Thất bại      | 1,119    | 0.35%  | 100% là `409 Conflict` ở API `transfer` do tranh chấp khóa |
-| Vi phạm số dư | 0        | 0.00%  | Toàn vẹn dữ liệu tuyệt đối, không xảy ra sai lệch số dư    |
-
-### 4.2. Biểu đồ kết quả & Phân tích
-![Phân bố kết quả tổng thể|303](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/pie_overall.png)
-![Số lượng request thành công](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/count_success.png)
-![Số lượng request thất bại](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/count_failure.png)
-![Mức độ sử dụng CPU](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/system_cpu.png)
-![Mức độ sử dụng RAM](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/system_ram.png)
-![Luồng thực thi MySQL](digitalwallet-docs/stress-test/figures/results/results_final/stress/plots/system_mysql_threads.png)
-
----
-## 5. Gợi ý các cải tiến cho Pha 2
-
-- Phase 2 - suggestion: [digitalwallet-docs/phase2_suggestion](digitalwallet-docs/phase2_suggestion.md)
-### 5.1. Về Business
-
-- Thay đổi quan hệ giữa User và Wallet thành 1 - N để một User có thể quản lý nhiều ví (ví USD, VNĐ,...)
-### 5.2. Về một số use-cases liên quan tới race condition
-
-- Use-case 1: Khi yêu cầu data từ frontend được gửi nhiều lần, back-end trả về kết quả giống nhau cho những request này. Vậy vấn đề mình gợi ý để các bạn giải quyết là làm sao cho khi thanh toán được khởi tạo, hệ thống payment cần trừ tiền đúng 1 lần để sao cho một message với cùng một nội dung thì được gửi đúng 1 lần tới user.
-- Use-case 2: Số dư hiện tại của User là N, User thực hiện cùng lúc hai request chuyển tiền với lần lượt số tiền là A và B (A + B > N). Cả hai request đều đọc số dư N trước khi bất kỳ request nào cập nhật dữ liệu ==> Cả hai đều nghĩ giao dịch hợp lệ. Vậy các bạn phải giải quyết vấn đề nếu một trong hai transaction thành công trước thì transaction còn lại phải bị từ chối.
+- [Kiến trúc hiện tại](digitalwallet-docs/architecture.md).
+- [Nghiệp vụ](digitalwallet-docs/business.md), [API contract](digitalwallet-docs/apicontract.md) và [database](digitalwallet-docs/dbanalysis.md).
+- [Hướng dẫn bộ công cụ stress test](digitalwallet-stress-test/README.md).
+- [Báo cáo tải baseline](digitalwallet-docs/stress-test/Report.md).
