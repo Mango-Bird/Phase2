@@ -9,7 +9,7 @@ Repository hiện chứa mã nguồn kế thừa từ Phase 1 và kế hoạch P
 - [Lộ trình, checklist, phân công hai người và contract nghiệm thu](digitalwallet-docs/phase2_implementation_plan.md).
 - [Khảo sát mã nguồn và vấn đề hiện trạng](digitalwallet-docs/phase2_assessment.md).
 
-Lộ trình tham khảo gồm 6 tuần, 13 đợt sửa C00–C12. Người A phụ trách giao dịch/domain; người B phụ trách nền tảng/kiểm chứng; hai người review chéo. Mỗi đợt sửa cần có bằng chứng nghiệm thu theo contract.
+Lộ trình tham khảo gồm 6 tuần, 13 đợt sửa C00–C12. A (chủ project) vừa code phần giao dịch/domain, vừa review/nghiệm thu và duy nhất có quyền merge. B phụ trách nền tảng/kiểm chứng, không cần review PR của A. Mọi PR phải có GitHub CI PASS trên commit mới nhất trước khi A merge. Mỗi đợt sửa cần có bằng chứng nghiệm thu theo contract.
 
 ## Cấu trúc repository
 
