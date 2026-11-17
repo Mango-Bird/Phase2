@@ -5,7 +5,7 @@ Ngày: 17/11/2026. A = Mango-Bird, vừa code vừa duy nhất nghiệm thu/merg
 ## 1. Phần đã có và việc mở đầu
 
 - A đã thiết lập CI, main rulesets và sửa 5 lỗi test baseline. Không tạo ticket yêu cầu B xây lại các phần này.
-- C00 benchmark, C01 phê duyệt ADR/public interfaces và C02 migration còn chưa xong.
+- C00 benchmark và C02 migration còn chưa xong. C01-A đã có [baseline contract v1](architecture-contracts-v1.md) và [biên bản bàn giao](C01-A-r1.md), chờ A review/merge để có hiệu lực.
 - **A bắt đầu C01-A; B có thể bắt đầu C00-B song song sau khi A giao ticket.** C02-B chỉ code khi schema policy được A chốt. Đây là phân công, không phải xác nhận B đã bắt đầu.
 - PR cũ đã merge và root mới đã có evidence; code tiếp theo phải branch từ main mới, không merge lại lịch sử Phase 1.
 
@@ -13,7 +13,7 @@ Ngày: 17/11/2026. A = Mango-Bird, vừa code vừa duy nhất nghiệm thu/merg
 
 ### C01-A — Chốt kiến trúc và public contracts
 
-Owner A; tự nghiệm thu. Đầu vào: source hiện tại và ADR-001…004 đang DRAFT.
+Owner A; tự nghiệm thu. C01-A chuyển ADR-001…004 từ DRAFT sang DECIDED candidate; sau A merge trở thành ACCEPTED baseline theo contract. Xem [contract chi tiết](architecture-contracts-v1.md) và [checklist C01-A-r1](C01-A-r1.md).
 
 - [ ] A đổi trạng thái ADR sang ACCEPTED khi thực sự chốt; ghi quyết định/đánh đổi, không đánh accepted hàng loạt vì file tồn tại.
 - [ ] Chốt module dependency graph và register/create-wallet orchestration, không có Identity↔Wallet cycle.

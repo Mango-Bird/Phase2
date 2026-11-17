@@ -1,0 +1,97 @@
+{
+  "contractVersion": "phase2-contracts.v1",
+  "hashAlgorithm": "SHA-256",
+  "encoding": "UTF-8",
+  "vectors": [
+    {
+      "name": "transfer-null",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "TRANSFER",
+        10,
+        null,
+        "000000000020",
+        100,
+        null
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"TRANSFER\",10,null,\"000000000020\",100,null]",
+      "sha256": "2c7773de0fae9d0f98055d43071492e0a49be88ab446f48b5195409b828a0790"
+    },
+    {
+      "name": "transfer-empty",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "TRANSFER",
+        10,
+        null,
+        "000000000020",
+        100,
+        ""
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"TRANSFER\",10,null,\"000000000020\",100,\"\"]",
+      "sha256": "5449884dcdae66ddab88b70a57e88b03b52fb693c89c75aaee2e076ea99f4bdc"
+    },
+    {
+      "name": "transfer-unicode",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "TRANSFER",
+        10,
+        null,
+        "000000000020",
+        100,
+        "Chuyển tiền"
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"TRANSFER\",10,null,\"000000000020\",100,\"Chuyển tiền\"]",
+      "sha256": "374d54aa6ba165ff517067c9c29bff90f5efabea90897f0078dc4248a739f634"
+    },
+    {
+      "name": "topup-null",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "TOPUP",
+        10,
+        501,
+        null,
+        100,
+        null
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"TOPUP\",10,501,null,100,null]",
+      "sha256": "3f14b98bc7d4a6ab0baba53f0aa3c452522f05b762f0d0997a8d9714f2bf28bb"
+    },
+    {
+      "name": "withdraw-null",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "WITHDRAW",
+        10,
+        501,
+        null,
+        100,
+        null
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"WITHDRAW\",10,501,null,100,null]",
+      "sha256": "3b4076de1f38cacf8e8f5742dd56587e704e76942193b8c4bdda0260dd5e6aae"
+    },
+    {
+      "name": "transfer-max-long",
+      "canonicalFields": [
+        "payment-request.v1",
+        1,
+        "TRANSFER",
+        10,
+        null,
+        "000000000020",
+        9223372036854775807,
+        null
+      ],
+      "canonicalUtf8": "[\"payment-request.v1\",1,\"TRANSFER\",10,null,\"000000000020\",9223372036854775807,null]",
+      "sha256": "18d2c94fccbed4fe863ea88f941372777330477f6e42529bbdd0d89c4402bdf2"
+    }
+  ]
+}
