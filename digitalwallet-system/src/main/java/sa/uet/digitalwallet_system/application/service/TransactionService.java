@@ -35,6 +35,12 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
 
         // Verify bank account belongs to user's wallet
         loadLinkedBankPort.loadByIdAndWalletId(command.getLinkedBankAccountId(), wallet.getId())
+                .map(account -> {
+                    if (!"ACTIVE".equals(account.getStatus())) {
+                        throw new IllegalArgumentException("Linked bank account is not active");
+                    }
+                    return account;
+                })
                 .orElseThrow(LinkedBankNotFoundException::new);
 
         // Credit wallet
@@ -72,6 +78,12 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
 
         // Verify bank account belongs to user's wallet
         loadLinkedBankPort.loadByIdAndWalletId(command.getLinkedBankAccountId(), wallet.getId())
+                .map(account -> {
+                    if (!"ACTIVE".equals(account.getStatus())) {
+                        throw new IllegalArgumentException("Linked bank account is not active");
+                    }
+                    return account;
+                })
                 .orElseThrow(LinkedBankNotFoundException::new);
 
         // Debit wallet

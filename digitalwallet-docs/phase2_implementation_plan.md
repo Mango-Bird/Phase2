@@ -105,6 +105,8 @@ QA08 là gate regression ban đầu, không phải tuyên bố hệ thống nhan
 
 ## 4. Phân công hai người
 
+> Điều chỉnh thứ tự khởi động: A trực tiếp làm phần baseline test C00, soạn quyết định C01 và thiết lập GitHub CI thuộc C02 trước. B chưa bắt đầu code; sau khi A nghiệm thu CI, B nhận phần migration/DB test còn lại của C02 và các ticket nền tảng tiếp theo. Phân công dài hạn dưới đây áp dụng sau giai đoạn khởi động. Các phần benchmark C00, migration C02 chưa tự động hoàn thành cùng CI.
+
 | Người | Trách nhiệm chính | Trách nhiệm review |
 |---|---|---|
 | **A — Bạn: Technical Lead & Transaction/Domain** | Thiết kế kiến trúc; Wallet/Banking/Payment, money rules, idempotency, concurrency, transaction contracts; nghiệm thu và quyết định release | Review PR của B; tự kiểm tra PR của A; duy nhất A quyết định và thực hiện merge |
