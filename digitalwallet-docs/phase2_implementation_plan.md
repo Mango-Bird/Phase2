@@ -1,7 +1,7 @@
 # Phase 2 — Lộ trình cải tiến kiến trúc và thuộc tính chất lượng
 
-> Trạng thái: kế hoạch đề xuất để triển khai, chưa phải kết quả đã nghiệm thu.
-> Ngày lập: 17/11/2026. Người thực hiện: A và B (thay bằng tên thành viên khi bắt đầu).
+> Bản điều phối v2: CI và ruleset đã triển khai; các hạng mục nghiệp vụ còn lại chưa được nghiệm thu nếu chưa có contract PASS và quyết định của A.
+> Cập nhật: 17/11/2026. A = chủ project Mango-Bird, vừa code vừa review/nghiệm thu và duy nhất merge. B = thành viên triển khai nền tảng, không review PR của A.
 > Cơ sở khảo sát: `phase2_assessment.md`. Tài liệu này chốt lại phạm vi Phase 2 theo thuộc tính chất lượng, thay cho hướng mở rộng multi-wallet ở bản khảo sát ban đầu.
 
 ## 1. Mục tiêu, phạm vi và nguyên tắc
@@ -103,45 +103,57 @@ Các mốc thời gian dưới đây là mục tiêu ban đầu cho môi trườ
 
 QA08 là gate regression ban đầu, không phải tuyên bố hệ thống nhanh hơn. Báo cáo riêng cả chi phí độ trễ của idempotency/outbox. QA05 phải ghi số event, cấu hình worker và tốc độ sự kiện mới; không dùng ngưỡng 2 phút cho backlog không giới hạn.
 
-## 4. Phân công hai người
+## 4. Phân công hai người — bản v2
 
-> Điều chỉnh thứ tự khởi động: A trực tiếp làm phần baseline test C00, soạn quyết định C01 và thiết lập GitHub CI thuộc C02 trước. B chưa bắt đầu code; sau khi A nghiệm thu CI, B nhận phần migration/DB test còn lại của C02 và các ticket nền tảng tiếp theo. Phân công dài hạn dưới đây áp dụng sau giai đoạn khởi động. Các phần benchmark C00, migration C02 chưa tự động hoàn thành cùng CI.
+A đã thực hiện baseline test, sửa 5 lỗi hiện hữu, thiết lập workflow CI và cấu hình quyền main. PR #2 và #3 đã được A merge; main đã đổi sang lịch sử mới. Không giao lại phần CI bootstrap cho B như công việc chưa làm. C00 còn benchmark; C01 có ADR dự thảo, chưa đồng nghĩa thiết kế đã được chốt; C02 còn migration và kiểm thử DB nghiệp vụ.
 
-| Người | Trách nhiệm chính | Trách nhiệm review |
+| Người | Phần việc code | Quyền và trách nhiệm |
 |---|---|---|
-| **A — Bạn: Technical Lead & Transaction/Domain** | Thiết kế kiến trúc; Wallet/Banking/Payment, money rules, idempotency, concurrency, transaction contracts; nghiệm thu và quyết định release | Review PR của B; tự kiểm tra PR của A; duy nhất A quyết định và thực hiện merge |
-| **B — Platform & Verification** | Baseline, CI/MySQL tests, migration framework, Identity/platform, outbox worker, inbox, metrics, benchmark, reconciliation; tự kiểm tra phần mình và bàn giao bằng chứng | Không cần review, approve hoặc ký nghiệm thu PR của A; chỉ sửa PR của B theo yêu cầu A |
+| **A — Mango-Bird, chủ project** | Kiến trúc/public contracts; Wallet/Banking/Payment; idempotency; transaction/retry; publisher; query; ownership/security nghiệp vụ | Tự kiểm tra PR mình; review PR B; chốt contract và scope; nghiệm thu, merge, quản lý ruleset và quyết định release |
+| **B — Platform & Quality Engineering** | Benchmark baseline; migration; DB fixture/test infrastructure; Identity/platform; architecture tests; outbox storage/worker/inbox; telemetry; reconciliation; benchmark cuối | Tự test code mình; mở PR và bàn giao evidence; sửa theo review của A. Không review, approve hoặc ký PR của A; không merge hoặc thay ruleset |
 
-Quy tắc: A vừa code vừa là người nghiệm thu cuối cùng và duy nhất có quyền merge. Với PR do A viết, A tự kiểm tra contract và kết quả CI; không cần B review/approve. Với PR do B viết, A review và yêu cầu sửa khi cần. B không có quyền merge. Cùng sửa một file phải bàn giao rõ; mọi thay đổi contract công khai do A chốt trước khi triển khai.
+B viết test harness và test cho module mình là công việc triển khai, không phải bước review bắt buộc đối với PR A. A chịu trách nhiệm đầy đủ test nghiệp vụ cho phần A code; không chờ B xác nhận để nghiệm thu phần A.
 
-### 4.1. File và tài nguyên có chủ sở hữu tích hợp
+### 4.1. Ownership và file dùng chung
 
-- A điều phối thay đổi `payment`, `wallet`, `banking`, API ghi tiền và các migration nghiệp vụ sau khi B mở nền migration.
-- B điều phối `build.gradle`, cấu hình chung, Docker/test infrastructure, `platform`, `notification`, `reconciliation` và CI.
-- Mã version migration đặt trước trong ticket; không đổi số migration đã merge. Người tạo migration chịu trách nhiệm nội dung; A chốt thứ tự; B triển khai kiểm tra migration trong CI, không cần review PR của A.
-- A sở hữu event payload nghiệp vụ; B sở hữu outbox delivery envelope. B đề xuất envelope; A phê duyệt contract event trước khi code publisher/consumer.
-- Mỗi người có branch riêng theo ticket, ví dụ `codex/p2-c03-idempotency`; tích hợp từng PR nhỏ theo dependency.
+- A sở hữu public Java APIs, HTTP/error semantics, idempotency lifecycle và event payload nghiệp vụ. B chỉ tích hợp theo phiên bản A đã chốt.
+- B sở hữu cơ chế migration, test fixture, delivery envelope và platform implementations. A chốt migration ordering và review PR tương ứng.
+- `build.gradle`, cấu hình Spring, Docker và workflow: người làm ticket khai báo trước; B thường thực hiện bảo trì, A là người chốt và merge. Không được tự đổi tên required check.
+- Migration mới được cấp version trong contract trước khi code; không sửa migration đã merge/applied. Nội dung nghiệp vụ do owner ticket viết, B duy trì công cụ chạy.
+- C03/C06/C09 tách thành ticket A/B và PR riêng; không có PR chung hai owner, không giao cả hai sửa một file cùng lúc.
+- Dependency hoàn tất khi PR đã được A merge và SHA đầu vào được ghi nhận; code đang nằm trên branch của người khác chưa phải dependency đã nghiệm thu.
 
-## 5. Lộ trình triển khai và dependency
+### 4.2. Việc bắt đầu ngay
 
-Ước lượng 6 tuần cho hai người làm bán thời gian tương đối đều; điều chỉnh theo thời gian thực tế. Gate quan trọng hơn ngày kết thúc. Không bắt đầu ticket phụ thuộc khi contract đầu vào chưa chốt.
+1. **A: C01-A** — chốt 4 ADR, module API và schema/error/event contracts để mở khóa triển khai.
+2. **B: C00-B** — hoàn thiện benchmark baseline trên main có CI hiện tại. Có thể chạy song song với C01-A vì không đổi kiến trúc.
+3. **B: C02-B** — sau khi A chốt schema policy, triển khai migration và DB fixtures. Không dựng lại CI từ đầu.
+4. Sau C02-B được merge: B làm C03-B (Identity/platform và architecture rules), rồi A làm C03-A (Wallet/Banking/Payment). Chia thứ tự này để tránh hai refactor cấu trúc cạnh tranh.
 
-| Tuần | A | B | Gate kết thúc |
+Chi tiết giao việc và contract từng ticket: [work orders v2](phase2/contracts/work-orders-v2.md). Mẫu điền mỗi PR: [PR contract template](phase2/contracts/PR-CONTRACT-TEMPLATE.md).
+
+## 5. Lộ trình còn lại và dependency
+
+6 tuần dưới đây là ước lượng phần việc còn lại sau nền CI, không phải cam kết thời hạn. Một tuần có thể kéo dài nếu gate chưa đạt. Chưa bắt đầu ticket phụ thuộc khi A chưa chốt đầu vào.
+
+| Đợt | A code/chốt | B code/bàn giao | Gate để sang đợt |
 |---|---|---|---|
-| 1 | C01 thiết kế ranh giới, kiểm kê API | C00 baseline; C02 nền DB/CI sau khi chốt schema policy | Baseline có thể tái lập, ADR và migration nền được ký |
-| 2 | C03 modular hóa Wallet/Banking/Payment | C03 Identity/platform; architecture tests và regression | API Phase 1 tương đương; ranh giới module được bảo vệ |
-| 3 | C04 idempotency; C05 atomicity/concurrency | Xây test harness DB dùng chung theo contract A chốt; C06 outbox storage; không review PR A | Ghi tiền đúng khi trùng, cạnh tranh và lỗi |
-| 4 | C06 ghi outbox nguyên tử, hỗ trợ fault tests | C07 worker/inbox và recovery tests | Worker chết không mất event, không trùng inbox |
-| 5 | C08 query/history; C09 security phần ownership | C09 logs/metrics; C10 reconciliation | Có thể truy vết, đối soát và truy vấn có giới hạn |
-| 6 | Sửa lỗi phát hiện qua C11; hoàn thiện ADR | C11 benchmark, failure campaign, tổng hợp evidence | C12 nghiệm thu tích hợp và runbook |
+| 1 | C01-A ADR/public contracts; review PR baseline/migration | C00-B benchmark baseline; C02-B migration + DB fixtures | A chốt thiết kế; baseline có raw evidence; migration mới/cũ đều pass |
+| 2 | C03-A Wallet/Banking/Payment sau C03-B | C03-B Identity/platform + architecture tests | Không cycle/import internals; regression và required CI PASS |
+| 3 | C04-A idempotency; C05-A atomicity/concurrency | C06-B outbox schema/storage sau event contract; hỗ trợ test infrastructure bằng ticket riêng nếu cần | Duplicate/retry không double debit, race/rollback đúng trên MySQL |
+| 4 | C06-A publisher nguyên tử | C07-B worker/inbox sau C06-A; recovery tests | Không mất event, inbox không trùng, lease recovery đúng |
+| 5 | C08-A query; C09-A security/ownership | C09-B metrics/log/health; C10-B reconciliation | Query có giới hạn; quyền đúng; quan sát/đối soát có evidence |
+| 6 | Sửa lỗi phần A; C12-A tổng nghiệm thu/release | C11-B benchmark/failure campaign; C12-B runbook/restore evidence | QA bắt buộc PASS; A review và quyết định release |
 
-Dependency chính: `C00 → C01/C02 → C03 → C04 → C05 → C06 → C07`; C08/C09 chạy sau C03 khi không đụng file chung; C10 sau contract dữ liệu C05; C11 sau C07–C10; C12 sau toàn bộ.
+Dependency: C01-A → C02-B → C03-B → C03-A → C04-A → C05-A. C00-B hoàn thành trước thay đổi đường chạy cần so sánh hiệu năng. C06-B cần schema/event contract A chốt; C06-A cần C05-A và C06-B; C07-B cần C06-A. C08-A/C09-A/C09-B có thể song song nếu ownership file rõ. C10-B cần dữ liệu C05/C06 ổn định. C11-B cần C07–C10 và baseline C00-B; C12 cần C11 cùng mọi gate bắt buộc.
 
 ## 6. Contract dùng chung cho mọi lần sửa
 
 ### 6.1. Definition of Ready — trước khi code
 
-- [ ] Có ticket ID, owner A/B và người nghiệm thu/merge A; PR của A ghi rõ tự kiểm tra.
+- [ ] Có ticket ID có hậu tố owner (ví dụ C04-A), owner duy nhất và người nghiệm thu/merge A; PR A ghi rõ tự kiểm tra.
+- [ ] Dependency đã merge, base SHA và contract version đầu vào được ghi.
+- [ ] Dùng branch từ main lịch sử mới; không merge branch kế thừa lịch sử cũ.
 - [ ] Ghi vấn đề/kịch bản chất lượng được tác động.
 - [ ] Chốt input/output, error codes và tương thích API.
 - [ ] Ghi module/file/schema được phép thay đổi.
@@ -158,37 +170,23 @@ Dependency chính: `C00 → C01/C02 → C03 → C04 → C05 → C06 → C07`; C0
 - [ ] Không log token/password/secret/số tài khoản đầy đủ; không trả exception nội bộ cho client.
 - [ ] Không phá architecture rules; không tăng dependency trái ADR.
 - [ ] Evidence ghi commit SHA, command, config, kết quả và hạn chế; không ghi “pass” khi chưa chạy.
-- [ ] A ghi PASS/FAIL và lý do; PR của A được A tự kiểm tra, không cần B approve. Thiếu bằng chứng ghi NOT RUN/BLOCKED, chưa merge.
+- [ ] A ghi ACCEPTED/REQUEST CHANGES và lý do gắn candidate SHA; test evidence ghi PASS/FAIL riêng. PR A tự kiểm tra, không cần B approve; thiếu bằng chứng thì chưa merge.
 - [ ] GitHub required checks PASS trên commit mới nhất; lưu URL workflow run và head SHA. Không dùng kết quả local thay cho GitHub CI.
 - [ ] Không push trực tiếp main, không auto-merge; chỉ A thực hiện merge sau khi thỏa mãn CI và contract.
 
-### 6.3. Template contract cho từng PR hoặc bản sửa tiếp theo
+### 6.3. Contract mỗi PR và mỗi lần sửa
 
-```markdown
-# Contract P2-Cxx-rN
-Owner: A/B | Người nghiệm thu và merge: A | Base SHA: ... | Candidate SHA: ...
-Chế độ review: A tự kiểm tra / A review PR của B
-GitHub PR URL: ... | CI run URL: ... | CI head SHA: ... | Required checks: ...
-Vấn đề và QA liên quan: ...
-Phạm vi thay đổi / phần không thuộc scope: ...
-Dependency và contract đầu vào: ...
-API/schema/event thay đổi: ...
-Invariants và transaction boundary: ...
-Given / When / Then cho từng case: ...
-Commands, môi trường, seed, concurrency, timeout: ...
-Bằng chứng thực tế và đường dẫn artifact: ...
-Compatibility và rollback/roll-forward: ...
-Kết quả: PASS / FAIL / NOT RUN / BLOCKED
-A xác nhận nghiệm thu, ngày, nhận xét: ...
-```
+Dùng [PR-CONTRACT-TEMPLATE.md](phase2/contracts/PR-CONTRACT-TEMPLATE.md) làm mẫu chuẩn duy nhất. Ghi owner A/B, người nghiệm thu A, dependency/base/candidate SHA, contract đầu vào/đầu ra, ma trận Given/When/Then, run URL và kế hoạch phục hồi.
 
-Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứng lần trước. Dù sửa nhỏ vẫn ghi contract ngắn: tác động, test liên quan và reviewer; không cần chạy lại toàn bộ benchmark nếu không tác động đường chạy hoặc cấu hình hiệu năng. Nếu thay đổi API/schema/transaction boundary phải cập nhật contract và ADR trước khi merge.
+Test case có trạng thái PASS/FAIL/NOT RUN/BLOCKED; quyết định nghiệm thu của A có trạng thái ACCEPTED/REQUEST CHANGES. Không dùng một chữ PASS cho cả hai. Mỗi lần sửa do review đổi revision `r1 → r2`, giữ evidence và lỗi lần trước; head đổi thì CI/review của head cũ không thay kết quả mới. Không cần chạy full benchmark cho sửa tài liệu nhưng required GitHub CI vẫn chạy theo workflow hiện tại.
+
+Candidate SHA cuối và quyết định A có thể ghi trên PR body/comment, tránh commit chỉ để cập nhật SHA của chính file contract. Không tick A đã nghiệm thu thay A. Thay đổi API/schema/event/transaction boundary phải cập nhật contract/ADR trước khi triển khai phần phụ thuộc.
 
 ## 7. Checklist và contract theo đợt sửa
 
 ### C00 — Baseline có thể tái lập
 
-**Owner B; reviewer A.** Đầu vào: Phase 1 chưa sửa hành vi.
+**C00-TEST: A đã có evidence. C00-B: B hoàn thiện baseline tải; A nghiệm thu và merge.** Đầu vào benchmark là main sau CI bootstrap, trước thay đổi kiến trúc/đường ghi tiền. Số liệu Phase 1 chỉ là tham chiếu lịch sử, không thay baseline mới.
 
 - [ ] Ghi commit gốc, JDK, Gradle, MySQL, CPU/RAM, cấu hình app/DB/load generator.
 - [ ] Kiểm kê endpoint, payload, status code và các test hiện có; ghi rõ test mock và DB thật.
@@ -213,20 +211,22 @@ Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứ
 
 ### C02 — Migration và nền kiểm thử DB/CI
 
-**Owner B; reviewer A.**
+**C02-CI: A đã triển khai và merge. C02-B: B phụ trách migration/DB test còn lại, A nghiệm thu và merge.**
 
+- [x] CI bootstrap chạy build/test với MySQL riêng; hai ruleset bảo vệ main đã active, có runbook/evidence.
 - [ ] Thêm Flyway hoặc Liquibase, chọn một công cụ.
 - [ ] Baseline schema Phase 1 được quản lý rõ; không tự động đánh baseline một DB bất kỳ mà không xác minh schema.
 - [ ] Tách config test/dev/production; production dùng validate thay vì update.
 - [ ] Testcontainers MySQL hoặc DB test biệt lập tương đương; CI không dùng DB cá nhân.
-- [ ] CI chạy build, unit/web, architecture và DB integration tests.
+- [x] CI chạy clean build và bộ unit/web/context hiện tại, lưu artifact test/JAR.
+- [ ] Bổ sung DB integration tests nghiệp vụ ở C02-B và architecture tests ở C03; không đánh dấu đã có chỉ vì contextLoads pass.
 - [ ] Loại bỏ xung đột giữa SQL init của Docker và migration owner; test cả volume mới và DB đã tồn tại.
 
 **Contract:** DB trống khởi tạo được; DB Phase 1 có user/ví/liên kết/giao dịch nâng cấp không mất giá trị; restart không chạy lặp migration. Schema không tương thích phải fail rõ. Rollback ứng dụng chỉ khi schema tương thích; migration đã áp dụng được sửa bằng migration mới, không sửa file cũ.
 
 ### C03 — Modular hóa không đổi hành vi
 
-**Owner A cho Wallet/Banking/Payment; B cho Identity/platform và test kiến trúc. A review/nghiệm thu và merge; không cần B review phần A.**
+**C03-B: B làm Identity/platform + architecture tests trước. C03-A: A làm Wallet/Banking/Payment sau. Tách PR, A tự kiểm tra phần A và review/merge phần B.**
 
 - [ ] Di chuyển từng module, giữ hexagonal bên trong; mỗi lần di chuyển build/test trước khi sang module tiếp.
 - [ ] Thay import trực tiếp bằng public module API.
@@ -239,7 +239,7 @@ Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứ
 
 ### C04 — Idempotency bền vững
 
-**Owner A; A tự kiểm tra và nghiệm thu. B cung cấp test harness dùng chung theo contract, không review PR của A.**
+**C04-A: A code và viết test idempotency, tự nghiệm thu/merge. Dùng DB harness đã merge của B; không cần B review.**
 
 - [ ] Bảng unique `(actor_id, operation, idempotency_key)`, request hash, response snapshot cần replay và transaction reference.
 - [ ] Header bắt buộc cho API ghi tiền ở release Phase 2; thiếu/không hợp lệ trả 400 với mã lỗi ổn định. Đây là breaking change có chủ đích: cập nhật OpenAPI, client test và k6; nếu cần client cũ phải thiết kế version API riêng trước triển khai.
@@ -270,7 +270,7 @@ Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứ
 
 ### C06 — Event contract và ghi outbox nguyên tử
 
-**Owner A cho publisher; B cho storage/claim design; A review/nghiệm thu và merge; không cần B review phần A.**
+**C06-B: B làm schema/storage sau khi A chốt event contract. C06-A: A làm publisher nguyên tử sau C06-B/C05-A. Hai PR riêng, A nghiệm thu và merge.**
 
 - [ ] Event `payment.completed.v1`: eventId, transactionId/referenceCode, type, amount, source/target wallet IDs phù hợp, occurredAt, correlationId, schemaVersion; không kèm secret hoặc thông tin tài khoản đầy đủ.
 - [ ] Mỗi transaction thành công tạo một event nghiệp vụ; unique theo transaction/event type để bảo vệ phát trùng do bug.
@@ -309,7 +309,7 @@ Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứ
 
 ### C09 — Security và observability
 
-**Owner A cho ownership/money logs; B cho config/metrics; A review/nghiệm thu và merge; không cần B review phần A.**
+**C09-A: A làm ownership/security và log nghiệp vụ. C09-B: B làm config/metrics/health/log infrastructure. Hai PR riêng; A nghiệm thu và merge.**
 
 - [ ] Production thiếu JWT secret thì startup fail; test/dev có secret riêng.
 - [ ] Generic 500 không lộ `ex.getMessage()`; log server có trace id và stack trace đã kiểm soát dữ liệu nhạy cảm.
@@ -377,20 +377,35 @@ Một contract bị FAIL được sửa bằng `r2`, `r3`…; giữ bằng chứ
 3. A tự kiểm tra diff/contract/evidence, xử lý mọi lỗi rồi quyết định merge. B không cần review, approve, chạy lại test hoặc ký PR này.
 4. Contract ghi rõ A vừa là tác giả vừa tự nghiệm thu; không mô tả đây là review độc lập.
 
-### 8.3. Contract CI và quyền GitHub
+### 8.3. Checklist mỗi lần push và merge
 
-- [ ] B triển khai workflow ở C02: chạy trên pull_request vào main và push các branch làm việc, cùng push main để phát hiện lỗi sau tích hợp.
-- [ ] Bảo đảm docs-only PR vẫn có một required check kết thúc rõ ràng; không để path filter làm check bắt buộc chờ vô hạn. Nếu giảm test, ghi lý do và giữ validation phù hợp.
-- [ ] Workflow thất bại nếu build/test bắt buộc thất bại; không dùng continue-on-error để biến lỗi thành PASS; lưu test reports khi fail.
-- [ ] Tại C02, A chốt danh sách tên required checks theo workflow thật; bổ sung architecture/MySQL checks khi chúng được triển khai. Không đánh PASS cho test chưa tồn tại.
-- [ ] Bằng chứng PR gồm run URL, head SHA và kết quả từng required check. CI pending, cancelled, missing hoặc failure đều chưa đủ điều kiện merge.
-- [ ] Cấu hình main bắt buộc PR, required status checks và cập nhật theo main mới nhất (hoặc merge queue nếu dùng sau này); chặn force push và xóa branch.
-- [ ] Không bật yêu cầu approval từ người khác cho PR của A: A tự nghiệm thu, GitHub không dùng thao tác self-approve làm gate. PR của B được A review thủ công và ghi nhận trên PR/contract.
-- [ ] A kiểm soát quyền repository/ruleset để chỉ A có thể cập nhật main qua merge; B được push branch và tạo PR. Dùng khả năng restrict update/push phù hợp gói GitHub; không giả định bật require PR là đã giới hạn merge cho A.
-- [ ] Kiểm tra quyền bằng tài khoản B: tạo/push branch được, merge hoặc ghi main bị chặn. Nếu gói/quyền hiện tại không hỗ trợ chính xác, A ghi rõ giới hạn và chọn cơ chế quyền phù hợp trước khi cấp quyền B; không tuyên bố đã cưỡng chế khi mới có quy ước.
-- [ ] A không bypass required checks để merge. Push lên GitHub có thể tạo run FAIL; yêu cầu là phải sửa tới PASS trước khi merge, không thể biết GitHub CI PASS trước khi push.
+Cấu hình đã hoạt động: ruleset `main-required-pr-and-ci` (27444067) không có bypass; `main-only-Mango-Bird-can-merge` (27444068) chỉ cho User Mango-Bird cập nhật qua PR. Chi tiết trong [runbook](phase2/runbooks/github-governance.md).
 
-Đây là yêu cầu quy trình và cấu hình cần thực hiện ở C02; việc ghi tài liệu không đồng nghĩa workflow/ruleset đã được thiết lập. A review mọi thay đổi CI/quyền bảo vệ main trước khi áp dụng.
+**Trước push — owner A hoặc B:**
+
+- [ ] Branch từ main mới; đúng ticket/scope, không có secret hoặc artifact không cần thiết.
+- [ ] Chạy local checks phù hợp, ghi PASS/FAIL/NOT RUN và lý do thực tế.
+- [ ] Cập nhật contract: API/schema/event, dependency SHA, test cases và rollback.
+
+**Sau mỗi push — owner theo dõi tới kết quả:**
+
+- [ ] Mở/cập nhật PR vào main; check `Backend build and test` phải xuất hiện, kể cả docs-only.
+- [ ] CI phải SUCCESS trên head SHA mới nhất; không coi pending/cancelled/skip/neutral/missing là bằng chứng PASS theo contract nhóm.
+- [ ] Lưu run URL, head SHA, test counts và artifact liên quan. Lỗi thì sửa, push lại và kiểm tra run mới.
+- [ ] B chỉ chuyển trạng thái READY FOR A khi evidence đủ; B không bấm merge.
+
+**Trước merge — chỉ A:**
+
+- [ ] Kiểm tra diff/contract/evidence; tự kiểm tra PR A, review PR B; không yêu cầu B ký PR A.
+- [ ] Branch up-to-date theo main và CI cuối PASS; thay đổi SHA hoặc base làm gate cũ hết hiệu lực, chạy/kiểm tra lại theo GitHub.
+- [ ] Resolve conversations và xử lý mọi lỗi blocker.
+- [ ] Ghi ACCEPTED hoặc REQUEST CHANGES trong PR, gắn candidate SHA. B không thể ghi ACCEPTED thay A.
+- [ ] Merge qua PR; nếu GitHub hiện `Bypass rules and merge`, chỉ dùng quyền vượt rule hạn chế người cập nhật. Không sửa/tắt ruleset CI để né check.
+- [ ] Ghi merge SHA/URL, kiểm tra CI trên main; không coi một tick trong file contract là bằng chứng cho commit thay đổi sau đó.
+
+**Sau merge nếu CI main FAIL:** A tạm dừng tích hợp ticket phụ thuộc, quyết định fix-forward hoặc revert qua PR; owner sửa phần mình. B chỉ sửa hạ tầng khi lỗi thuộc hạ tầng, không phải review code A. Không tắt CI để tiếp tục release.
+
+Bảo trì quyền: A giữ quyền sửa ruleset, không cấp credential A cho B. Hiện chưa test thực tế bằng credential B; khi B được onboard, xác minh push feature branch được và update main bị chặn. Không thay required-check name hoặc bypass actors nếu A chưa chốt.
 
 Mức kiểm tra: docs kiểm tra link/nội dung; domain chạy unit và DB cases liên quan; schema/transaction/worker chạy integration/failure cases; query/pool/locking chạy benchmark liên quan; release chạy toàn bộ gate. B không phải reviewer dự phòng của A.
 
@@ -412,23 +427,23 @@ digitalwallet-docs/phase2/
 
 Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng seed tổng hợp và đường dẫn lưu artifact phù hợp. Mỗi evidence README ghi rõ dữ liệu đã được ẩn và phần chưa đo.
 
-| Contract | Owner | Người nghiệm thu/merge | Trạng thái ban đầu |
+| Hạng mục | Owner | Trạng thái có bằng chứng | Bước tiếp theo / người nghiệm thu |
 |---|---|---|---|
-| C00 | B | A | TODO |
-| C01 | A | A tự kiểm tra | TODO |
-| C02 | B | A | TODO |
-| C03 | A/B theo module | A | TODO |
-| C04 | A | A tự kiểm tra | TODO |
-| C05 | A | A tự kiểm tra | TODO |
-| C06 | A/B theo publisher/storage | A | TODO |
-| C07 | B | A | TODO |
-| C08 | A | A tự kiểm tra | TODO |
-| C09 | A/B theo ownership/platform | A | TODO |
-| C10 | B | A | TODO |
-| C11 | B | A | TODO |
-| C12 | A+B | A | TODO |
+| C00-TEST | A | VERIFIED: baseline local 111/13 lỗi; sau sửa GitHub 111 PASS | Giữ evidence, A xác nhận phạm vi test; không suy ra benchmark hoàn tất |
+| C00-B | B | TODO | Benchmark baseline hiện tại, A nghiệm thu |
+| C01-A | A | DRAFT: có 4 ADR | A chốt public contracts và trạng thái ADR |
+| C02-CI | A | MERGED + VERIFIED | CI/rulesets hoạt động; bảo trì theo mỗi SHA |
+| C02-B | B | TODO | Migration và DB integration harness, A review |
+| C03-B / C03-A | B rồi A | TODO | Tách PR và dependency như mục 5 |
+| C04-A / C05-A | A | TODO | Idempotency và concurrency, A tự kiểm tra |
+| C06-B / C06-A | B rồi A | TODO | Storage rồi publisher, A nghiệm thu |
+| C07-B | B | TODO | Worker/inbox/recovery, A review |
+| C08-A | A | TODO | Query/history, A tự kiểm tra |
+| C09-A / C09-B | A / B | TODO | Security / observability, A nghiệm thu |
+| C10-B / C11-B | B | TODO | Reconciliation / benchmark cuối, A review |
+| C12-B / C12-A | B / A | TODO | B bàn giao vận hành, A release |
 
-Trạng thái hợp lệ: TODO → READY → IN PROGRESS → IN REVIEW → PASS; FAIL quay về IN PROGRESS, BLOCKED ghi nguyên nhân và điều kiện mở chặn. Không đánh checklist hoàn tất chỉ vì đã viết kế hoạch này.
+Trạng thái triển khai: TODO → READY → IN PROGRESS → CI RUNNING → READY FOR A → ACCEPTED BY A → MERGED. PR A vẫn ghi rõ tự kiểm tra, không có bước review của B. FAIL/REQUEST CHANGES quay lại IN PROGRESS; BLOCKED ghi dependency và điều kiện mở chặn. VERIFIED chỉ nói bằng chứng kỹ thuật, không tự thay ACCEPTED BY A. Các checkbox mẫu mặc định chưa tick; chỉ tick trong contract của candidate đã kiểm tra. Không đánh toàn bộ C00/C02 hoàn tất khi mới xong test/CI.
 
 ## 10. Rủi ro và phương án thu gọn
 

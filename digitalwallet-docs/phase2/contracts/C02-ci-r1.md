@@ -12,14 +12,22 @@ Phạm vi: phần CI của C02; không bao gồm Flyway/Liquibase, migration d�
 - Chạy `bash ./gradlew clean build --no-daemon --stacktrace`, không bỏ test, không continue-on-error.
 - Upload test XML/HTML kể cả khi build fail; upload JAR chỉ khi thành công.
 
-## Checklist nghiệm thu
+## Checklist kỹ thuật đã xác minh
 
-- [ ] Required check PASS trên candidate SHA cuối cùng và có run URL.
-- [ ] Test XML có số lượng test/failure thực tế; không dùng skipped tests để che lỗi.
-- [ ] Build tạo executable JAR.
+- [x] Candidate CI bootstrap có run SUCCESS và URL trong evidence; root mới `e0af624` cũng đã [CI SUCCESS](https://github.com/Mango-Bird/Phase2/actions/runs/44051115523). Mỗi PR sau phải kiểm tra head SHA riêng.
+- [x] Artifact XML của CI bootstrap: 111 tests, 0 failures/errors/skipped.
+- [x] Build tạo executable JAR và upload artifact.
 - [x] Main yêu cầu PR và check `Backend build and test`; đã đọc lại effective rules của hai ruleset active, xem [runbook](../runbooks/github-governance.md).
-- [ ] A có thể tự nghiệm thu PR của A; không cần B approve.
-- [ ] Không merge trong phiên này; A quyết định merge sau khi review.
+- [x] Ruleset không yêu cầu B approve; chỉ User Mango-Bird có quyền update qua PR, ruleset CI không có bypass.
+- [x] A đã merge PR #2/#3. Các PR mới vẫn do A tự nghiệm thu/merge; không coi contract này là approval cho thay đổi sau.
+
+## Phần còn lại không thuộc contract CI này
+
+- [ ] C02-B: migration tool, nâng cấp DB cũ/mới và fixtures/test integration nghiệp vụ.
+- [ ] C03: architecture rules sau khi modular hóa.
+- [ ] Thử quyền thực tế bằng tài khoản B khi onboard; hiện chỉ đã xác minh effective rules qua API.
+
+Theo dõi công việc mới trong [work orders v2](work-orders-v2.md), không giao lại CI bootstrap cho B. Contract mỗi PR dùng [mẫu hiện tại](PR-CONTRACT-TEMPLATE.md).
 
 ## Phục hồi và giới hạn
 
