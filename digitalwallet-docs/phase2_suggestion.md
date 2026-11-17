@@ -1,3 +1,5 @@
+> Lộ trình Phase 2 đã điều chỉnh theo hướng kiến trúc và thuộc tính chất lượng: [kế hoạch chi tiết, checklist, phân công hai người và contract nghiệm thu](phase2_implementation_plan.md). Nội dung dưới đây là gợi ý ban đầu; multi-wallet hiện ngoài phạm vi chính.
+
 *Về Business
 - Thay đổi quan hệ giữa User và Wallet thành 1 - N để một User có thể quản lý nhiều ví (ví USD, VNĐ,...)
 Về một số use-cases liên quan tới race condition
