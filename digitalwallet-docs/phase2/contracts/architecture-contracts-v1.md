@@ -72,6 +72,10 @@ interface WalletPostingApi {
     PostingWallet loadTargetForPosting(String walletNumber);
     void applyBalanceChange(BalanceChange change); // MANDATORY; optimistic version
 }
+interface WalletReconciliationReadApi {
+    List<WalletBalanceRow> scanBalances(long afterWalletId, int limit);
+    // MANDATORY read transaction, keyset theo walletId; limit <= 1000
+}
 
 // banking.api
 interface BankLinkApi {
@@ -93,6 +97,11 @@ interface PaymentCommandApi {
 interface PaymentQueryApi {
     PaymentView getOwned(long actorUserId, String referenceCode);
     PaymentSlice history(long actorUserId, HistoryQuery query);
+}
+interface PaymentReconciliationReadApi {
+    long lastCommittedTransactionId(); // dùng trong lúc đã dừng/drain writers để tạo opening
+    List<WalletDeltaRow> sumDeltas(List<Long> walletIds, long afterTransactionId);
+    // MANDATORY, cùng read snapshot caller; walletIds <= 1000
 }
 
 // platform.api.outbox — implementation không mở transaction mới
@@ -135,7 +144,8 @@ interface RunReconciliationApi {
 | PaymentSlice | items, nextCursor nullable, hasMore; không total count bắt buộc |
 | HistoryQuery / InboxQuery | cursor nullable, limit default 20/max 100; HistoryQuery có type/from/to |
 | NotificationSlice | items, nextCursor, hasMore; NotificationView có id, eventId, transactionReference, kind, createdAt |
-| ReconciliationInput/Report | cutoff/snapshot policy, runId, totals, findings(expected/actual/delta); không tự sửa balance |
+| WalletBalanceRow / WalletDeltaRow | walletId và balance/delta; tổng delta dùng BigInteger/DECIMAL đủ rộng, không cộng dồn bằng long gây overflow trung gian |
+| ReconciliationInput/Report | baselineId, transaction watermark/snapshot policy, runId, totals, findings(expected/actual/delta); không tự sửa balance |
 
 `applyBalanceChange` phải update dựa trên expectedVersion và expectedBalance; nếu row không còn khớp thì ném retryable optimistic conflict, không ghi đè snapshot cũ. Adapter có thể dùng JPA `@Version` với validate balance trước persist/flush; test phải chứng minh update stale không thành công. Không dùng bulk update bỏ qua version. Các ví được apply theo id tăng dần, không mặc định source trước target.
 
@@ -276,12 +286,20 @@ DB trống migrate từ V1. DB cũ chỉ được baseline V1 bằng thao tác c
 | idempotency_requests (Payment) | id BIGINT PK, actor_id, operation VARCHAR(16), key VARCHAR(64) binary collation, request_hash CHAR(64), status PROCESSING/COMPLETED, transaction_id nullable cho PROCESSING, response_version, response_status, response_body JSON, created_at/completed_at; unique actor/operation/key; COMPLETED bắt buộc response + transaction |
 | outbox_events (Platform) | event_id CHAR(36) PK, aggregate_type/id, event_type, schema_version, payload JSON, status PENDING/CLAIMED/DONE/DEAD, attempts>=0, next_attempt_at, lease_until nullable, claim_token nullable, last_error nullable, created_at/processed_at; unique aggregate/type; index status/next_attempt_at/created_at và status/lease_until |
 | notifications (Notification) | id BIGINT PK, event_id, recipient_id, channel, kind, transaction_reference, created_at; unique event/recipient/channel; index recipient/created_at/id; event_id FK outbox có thể dùng trong cùng DB nhưng không import JPA entity |
-| reconciliation_openings (Reconciliation) | baseline_id, wallet_id, opening_balance, cutoff token/time; unique baseline/wallet, chỉ tạo khi cutoff nhất quán |
+| reconciliation_openings (Reconciliation) | baseline_id, wallet_id, opening_balance, opening_last_transaction_id và captured_at; unique baseline/wallet; metadata baseline phải có trạng thái COMPLETE trước khi dùng |
 | reconciliation_runs/findings | run_id, baseline/cutoff, started/completed/status/counts; findings run/wallet/expected/actual/delta; không FK cascade xóa lịch sử tiền |
 
 Tất cả timestamp mới DATETIME(6) UTC theo app/DB session; không tự đổi precision cột cũ trong refactor C03. FK/index/check chi tiết DDL phải đối chiếu MySQL tại contract implementation; không coi bảng logic này là SQL chạy được. Không cascade delete user/wallet/history/idempotency/outbox để làm mất bằng chứng tiền.
 
 C02 phải ghi timezone thực tế của dữ liệu legacy. Không tự gắn `Z` vào DATETIME cũ khi chưa biết nguồn timezone; giữ HTTP timestamp format hiện tại ở C03 bằng adapter, mọi chuyển đổi dữ liệu thời gian cần migration contract riêng.
+
+### 8.2. Opening baseline và snapshot đối soát
+
+Phase 2 chọn opening **trong maintenance window**: dừng nhận thao tác ghi tiền/đăng ký ví trên tất cả app instance, drain toàn bộ transaction đang chạy, mở consistent snapshot, lấy balances cùng `max(transaction.id)`, lưu opening và COMPLETE baseline rồi mới mở writers. Không dùng timestamp đơn thuần hoặc max ID khi còn transaction đang chạy vì transaction có thể được cấp ID/createdAt trước nhưng commit sau cutoff.
+
+Mỗi run sau đó mở một read transaction REPEATABLE_READ/snapshot duy nhất; các API đọc ở trên tham gia cùng transaction. Expected balance = opening + tổng signed delta của history có id lớn hơn opening watermark và visible trong cùng snapshot. TOPUP +target, WITHDRAW −source, TRANSFER −source/+target; không tự loại transaction chưa có status vì bảng hiện tại chỉ ghi successful committed history.
+
+Ví được tạo sau opening có opening=0 theo createInitialWallet contract và chỉ hợp lệ nếu created-after-baseline được xác minh; thiếu opening cho ví đã tồn tại là lỗi baseline, không âm thầm coi bằng 0. Không reset/reuse transaction IDs hoặc ghi history bằng đường bypass API sau opening. Report persist trong transaction riêng sau khi đóng read snapshot; nó ghi snapshot/run metadata, không hứa phản ánh balance tại thời điểm người dùng mở báo cáo. B phải test transaction bắt đầu trước cutoff/commit sau và từ chối tạo opening khi writers chưa drain.
 
 ## 9. Walkthrough nghiệm thu thiết kế
 
