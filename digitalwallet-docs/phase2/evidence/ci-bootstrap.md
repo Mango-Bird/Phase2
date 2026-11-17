@@ -21,7 +21,19 @@ Ngày: 17/11/2026. Người thực hiện: A qua Codex. Người quyết định
 - Workflow `.github/workflows/ci.yml`: Ubuntu, Java 21, MySQL 8.4 service riêng; import SQL Phase 1, Hibernate validate, `clean build` toàn bộ test.
 - Tên check: `Backend build and test`. Không dùng path filter; docs-only vẫn chạy check.
 - XML/HTML được lưu artifact cả khi test fail. Credential CI chỉ dùng DB tạm của job.
-- Kết quả GitHub và cấu hình bảo vệ branch: đang chờ chạy/xác minh, chưa đánh PASS.
+- Local sau sửa: 103 tests không cần MySQL PASS, 0 failures/errors/skipped; chạy bằng `gradlew.bat test --no-daemon --tests '*application.service.*' --tests '*adapter.in.web.*' --tests '*JwtAuthenticationFilterTest'`.
+- Candidate code SHA: `4df5e3898acf078b9e387b7ed3146ebf86c8a38f`.
+- [PR #2](https://github.com/Mango-Bird/Phase2/pull/2), chưa merge.
+- [GitHub PR run 44049796729](https://github.com/Mango-Bird/Phase2/actions/runs/44049796729): SUCCESS; artifact XML có 13 suites, **111 tests, 0 failures, 0 errors, 0 skipped**; `bootJar` và `build` thành công.
+- [GitHub push run 44049700678](https://github.com/Mango-Bird/Phase2/actions/runs/44049700678): SUCCESS.
+- GitHub runner dùng Temurin 21.0.13, MySQL service 8.4 và Gradle 9.8.1. Artifact test HTML/XML và JAR có trong run, retention lần lượt 14/7 ngày.
+- Đây là bằng chứng cho code SHA trên. Commit cập nhật evidence tiếp theo phải có check riêng trên SHA mới trước khi merge; không dùng run cũ thay cho head mới.
+
+## Cấu hình bảo vệ main — BLOCKED
+
+Trước phiên này repo không có workflow runs hoặc rulesets. Thao tác yêu cầu PR + required CI cho main đã bị automatic approval review từ chối trước khi thực thi: đề xuất không yêu cầu approval người khác để A tự nghiệm thu, nhưng chưa cưỡng chế được chỉ A merge. Không thay đổi protection và không tìm cách vượt chặn bằng cơ chế khác. Cần A xác nhận cấu hình quyền phù hợp trước khi áp dụng; CI đã chạy không đồng nghĩa CI đã là required check.
+
+Trạng thái bàn giao: workflow/build/test PASS trên candidate đã nêu; branch protection BLOCKED; A chưa ký nghiệm thu và PR chưa merge.
 
 ## Phạm vi và giới hạn
 

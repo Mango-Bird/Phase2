@@ -25,4 +25,4 @@ Phạm vi: phần CI của C02; không bao gồm Flyway/Liquibase, migration d�
 
 Revert workflow trong PR nếu cấu hình sai, không tắt test để lấy PASS. Cấu hình bảo vệ main thay đổi qua GitHub API phải được ghi lại. Bảo vệ require PR/check chưa tự đồng nghĩa chỉ A có quyền merge; giới hạn theo gói GitHub/quyền repository phải được báo đúng.
 
-Kết quả: đang triển khai, chưa nghiệm thu. Xem evidence `../evidence/ci-bootstrap.md`.
+Kết quả kỹ thuật candidate `4df5e38`: GitHub push và PR CI SUCCESS, 111 tests PASS, không skip; artifact JAR đã tạo. Chưa nghiệm thu cuối: main protection bị automatic approval review chặn, cần quyết định của A; không đánh hoàn tất toàn bộ C02. Xem [evidence](../evidence/ci-bootstrap.md) và CI của head SHA mới nhất trước khi merge.
