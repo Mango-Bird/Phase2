@@ -1,0 +1,18 @@
+.obsidian
+
+.idea/
+.idea
+
+.digitalwallet-docs
+
+.vscode
+
+AGENTS.md
+DECISIONS.md
+PROGRESS.md
+
+.DS_Store
+
+# Docker secrets
+.env
+
