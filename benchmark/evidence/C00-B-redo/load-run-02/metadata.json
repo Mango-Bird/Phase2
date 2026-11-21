@@ -1,0 +1,18 @@
+{
+  "runName": "load-run-02",
+  "profile": "load",
+  "baseSha": "2797255bdf03558fc010f446b7141e7e3ec594f8",
+  "dirtyWorktree": true,
+  "startedAt": "2026-11-21T00:45:42.4707121Z",
+  "os": "Microsoft Windows NT 10.0.26300.0",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+  "logicalProcessors": 12,
+  "totalMemoryBytes": 12578578432,
+  "dockerServer": "29.6.1",
+  "k6Image": "grafana/k6@sha256:3d8e5c7f1d53ec59408c2ffbd9943602a0985ffcbd4a2430ec00f3ffca89796e",
+  "composeProject": "phase2-c00b",
+  "topology": "SUT, MySQL, and Dockerized k6 are separate containers on one Docker Desktop host; k6 calls the app directly on the Compose bridge network.",
+  "limitation": "Shared-host contention means this is a reproducible local baseline, not an isolated capacity result.",
+  "completedAt": "2026-11-21T01:18:11.2329754Z",
+  "k6ExitCode": 0
+}

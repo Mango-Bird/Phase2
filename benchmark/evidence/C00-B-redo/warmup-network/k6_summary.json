@@ -1,0 +1,248 @@
+{
+    "metrics": {
+        "http_req_duration{expected_response:true}": {
+            "avg": 14.446668382716057,
+            "min": 1.598651,
+            "med": 9.447433,
+            "max": 286.800223,
+            "p(90)": 23.332504,
+            "p(95)": 62.7302045,
+            "p(99)": 88.7096389
+        },
+        "checks": {
+            "passes": 899,
+            "fails": 0,
+            "value": 1
+        },
+        "data_sent": {
+            "count": 406517,
+            "rate": 2191.346757120815
+        },
+        "http_req_blocked": {
+            "min": 0.001702,
+            "med": 0.00562,
+            "max": 5.703374,
+            "p(90)": 0.009245000000000001,
+            "p(95)": 0.12377079999999344,
+            "p(99)": 0.45783552000000005,
+            "avg": 0.05726961356297094
+        },
+        "http_req_sending": {
+            "p(95)": 0.0840193999999999,
+            "p(99)": 0.11738060000000004,
+            "avg": 0.04281227448869755,
+            "min": 0.005849,
+            "med": 0.037113,
+            "max": 0.321597,
+            "p(90)": 0.05921500000000001
+        },
+        "iteration_duration": {
+            "avg": 175837.807896,
+            "min": 171501.517518,
+            "med": 174658.420404,
+            "max": 181132.928195,
+            "p(90)": 180407.1509554,
+            "p(95)": 180770.03957519997,
+            "p(99)": 181060.35047103997
+        },
+        "http_req_failed": {
+            "passes": 38,
+            "fails": 891,
+            "value": 0.04090419806243272
+        },
+        "data_received": {
+            "count": 1102915,
+            "rate": 5945.309073494845
+        },
+        "http_reqs": {
+            "count": 929,
+            "rate": 5.007813049307255
+        },
+        "unexpected_failure": {
+            "passes": 0,
+            "fails": 899,
+            "value": 0
+        },
+        "iterations": {
+            "count": 5,
+            "rate": 0.02695270747743409
+        },
+        "http_req_duration": {
+            "p(90)": 22.784234400000003,
+            "p(95)": 62.3580752,
+            "p(99)": 88.59747092000002,
+            "avg": 14.006789656620029,
+            "min": 1.298172,
+            "med": 9.267514,
+            "max": 286.800223
+        },
+        "http_req_tls_handshaking": {
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0
+        },
+        "http_req_waiting": {
+            "avg": 13.82898510548977,
+            "min": 1.105387,
+            "med": 9.128112,
+            "max": 286.656995,
+            "p(90)": 22.649925600000003,
+            "p(95)": 62.2261566,
+            "p(99)": 88.36424496000001
+        },
+        "vus_max": {
+            "min": 5,
+            "max": 5,
+            "value": 5
+        },
+        "vus": {
+            "value": 1,
+            "min": 0,
+            "max": 5
+        },
+        "http_req_connecting": {
+            "max": 0.771319,
+            "p(90)": 0,
+            "p(95)": 0,
+            "p(99)": 0.33476452000000023,
+            "avg": 0.01408046932185145,
+            "min": 0,
+            "med": 0
+        },
+        "request_outcome": {
+            "count": 899,
+            "rate": 4.84609680444265
+        },
+        "http_req_receiving": {
+            "p(90)": 0.21183300000000002,
+            "p(95)": 0.2601923999999999,
+            "p(99)": 0.3389842400000001,
+            "avg": 0.13499227664155017,
+            "min": 0.040082,
+            "med": 0.11463,
+            "max": 0.717001
+        }
+    },
+    "setup_data": {
+        "receivingWalletNumbers": [
+            "609687291396",
+            "373014142608",
+            "966161275077",
+            "241061467925",
+            "713454476013",
+            "254761705645",
+            "393910351110",
+            "389213166183",
+            "411490605474",
+            "138299271442"
+        ],
+        "runId": "mwpngx5x04ba",
+        "startTime": 1795219720293,
+        "testEndTime": 1795219900293
+    },
+    "root_group": {
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {
+            "setup": {
+                "groups": {},
+                "checks": {
+                    "probe_register_400_status": {
+                        "path": "::setup::probe_register_400_status",
+                        "id": "6ce502a2cfd9d93d0def02a8f57da304",
+                        "passes": 1,
+                        "fails": 0,
+                        "name": "probe_register_400_status"
+                    },
+                    "probe_wallet_401_status": {
+                        "passes": 1,
+                        "fails": 0,
+                        "name": "probe_wallet_401_status",
+                        "path": "::setup::probe_wallet_401_status",
+                        "id": "f82be3eb9d7a9b080c25e0e4bf79c683"
+                    },
+                    "probe_unlink_404_status": {
+                        "name": "probe_unlink_404_status",
+                        "path": "::setup::probe_unlink_404_status",
+                        "id": "c4f147cb7867c8cb4a3aec037e8b6e75",
+                        "passes": 1,
+                        "fails": 0
+                    }
+                },
+                "name": "setup",
+                "path": "::setup",
+                "id": "5c0f8025f7e0b6654089e5b00e950f1a"
+            }
+        },
+        "checks": {
+            "register_status": {
+                "name": "register_status",
+                "path": "::register_status",
+                "id": "34bb0434c298ea21063f05c6b8b2bbc2",
+                "passes": 5,
+                "fails": 0
+            },
+            "login_status": {
+                "name": "login_status",
+                "path": "::login_status",
+                "id": "b5ca5b0722d53d4efdd33fe5abe5887b",
+                "passes": 43,
+                "fails": 0
+            },
+            "linkBank_status": {
+                "name": "linkBank_status",
+                "path": "::linkBank_status",
+                "id": "9e034750be9ae57896cd78d2287cc505",
+                "passes": 40,
+                "fails": 0
+            },
+            "viewBalance_status": {
+                "name": "viewBalance_status",
+                "path": "::viewBalance_status",
+                "id": "27651ac6c9052dd32978b92a9e07f937",
+                "passes": 130,
+                "fails": 0
+            },
+            "topUp_status": {
+                "name": "topUp_status",
+                "path": "::topUp_status",
+                "id": "8ffb3aa1f73bb1454d11c39ca4d87d25",
+                "passes": 209,
+                "fails": 0
+            },
+            "transfer_status": {
+                "name": "transfer_status",
+                "path": "::transfer_status",
+                "id": "b5f91a3d347519dc1c691d5499ecf4c8",
+                "passes": 257,
+                "fails": 0
+            },
+            "viewAccounts_status": {
+                "name": "viewAccounts_status",
+                "path": "::viewAccounts_status",
+                "id": "ace7b74c2ed9cc8f155f50f798ee3d1f",
+                "passes": 81,
+                "fails": 0
+            },
+            "viewHistory_status": {
+                "passes": 46,
+                "fails": 0,
+                "name": "viewHistory_status",
+                "path": "::viewHistory_status",
+                "id": "5fbadef8fad0be79817b92164d003b3c"
+            },
+            "withdraw_status": {
+                "path": "::withdraw_status",
+                "id": "c4df2f4933b2e17ccc08a4c1ca82aeae",
+                "passes": 85,
+                "fails": 0,
+                "name": "withdraw_status"
+            }
+        },
+        "name": "",
+        "path": ""
+    }
+}
