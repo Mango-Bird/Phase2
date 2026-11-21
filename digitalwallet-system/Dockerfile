@@ -15,8 +15,13 @@ RUN ./gradlew bootJar --no-daemon -x test
 # Stage 2: Minimalist Lightweight JRE 21 Runtime Container
 FROM eclipse-temurin:21-jre-alpine
 
+ARG APP_SOURCE_SHA=unknown
+ARG APP_SOURCE_FINGERPRINT=unknown
+
 LABEL maintainer="SAUETDigitalWallet" \
-      description="Digital Wallet System - Spring Boot 4 / JDK 21"
+      description="Digital Wallet System - Spring Boot 4 / JDK 21" \
+      org.opencontainers.image.revision="${APP_SOURCE_SHA}" \
+      io.mangobird.phase2.source-fingerprint="${APP_SOURCE_FINGERPRINT}"
 
 WORKDIR /app
 

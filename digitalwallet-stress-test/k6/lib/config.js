@@ -1,6 +1,7 @@
 const PROFILES = {
   smoke:  '../../config/profiles/smoke.json',
   load:   '../../config/profiles/load.json',
+  'hot-wallet': '../../config/profiles/hot-wallet.json',
   stress: '../../config/profiles/stress.json',
 };
 
@@ -15,7 +16,7 @@ const dataKeys = (obj) => Object.keys(obj).filter((k) => !k.startsWith('_'));
 export function loadConfig(profileName) {
   const mdpRaw = loadJson(import.meta.resolve('../../config/mdp.json'));
   const profileUrl = PROFILES[profileName];
-  if (!profileUrl) throw new Error(`Unknown profile: "${profileName}" (smoke|load|stress)`);
+  if (!profileUrl) throw new Error(`Unknown profile: "${profileName}" (smoke|load|hot-wallet|stress)`);
   return new Config(mdpRaw, loadJson(import.meta.resolve(profileUrl)));
 }
 

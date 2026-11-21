@@ -1,0 +1,126 @@
+{
+  "runs": [
+    {
+      "name": "load-run-01",
+      "requests": 179301,
+      "achievedRps": 92.84613672467897,
+      "p50Ms": 8.586511,
+      "p95Ms": 216.997329,
+      "p99Ms": 4747.05397,
+      "unexpectedFailures": 374,
+      "httpFailedRate": 0.04722784591273892,
+      "invariantViolations": 0,
+      "walletMismatchCount": 0,
+      "negativeBalanceCount": 0,
+      "deadlocks": 54,
+      "rawSha256": "f9191aa660f5aa61f3ef7061d6854d60fc4088461d7a0be9fe88d1f27a90ff09"
+    },
+    {
+      "name": "load-run-02",
+      "requests": 175386,
+      "achievedRps": 90.7075407127355,
+      "p50Ms": 8.503226,
+      "p95Ms": 357.556328,
+      "p99Ms": 4441.376713599998,
+      "unexpectedFailures": 422,
+      "httpFailedRate": 0.04717594334781568,
+      "invariantViolations": 0,
+      "walletMismatchCount": 0,
+      "negativeBalanceCount": 0,
+      "deadlocks": 71,
+      "rawSha256": "ad1b9d310798c73a9e6df08f9c308241056d0a126c80d86ce6edcb9795abbb02"
+    },
+    {
+      "name": "load-run-03",
+      "requests": 178913,
+      "achievedRps": 92.55233992372415,
+      "p50Ms": 8.422888,
+      "p95Ms": 1124.1789411999978,
+      "p99Ms": 4292.731817040002,
+      "unexpectedFailures": 413,
+      "httpFailedRate": 0.04670985339243096,
+      "invariantViolations": 0,
+      "walletMismatchCount": 0,
+      "negativeBalanceCount": 0,
+      "deadlocks": 64,
+      "rawSha256": "bba09c3b0af9adab610d877536a7b34f59317648c04439e2fa80e927d1118ac2"
+    }
+  ],
+  "statistics": {
+    "achievedRps": {
+      "min": 90.7075407127355,
+      "median": 92.55233992372415,
+      "max": 92.84613672467897,
+      "mean": 92.03533912037953,
+      "coefficientOfVariation": 0.01028436950433302
+    },
+    "p50Ms": {
+      "min": 8.422888,
+      "median": 8.503226,
+      "max": 8.586511,
+      "mean": 8.504208333333333,
+      "coefficientOfVariation": 0.00785521930159692
+    },
+    "p95Ms": {
+      "min": 216.997329,
+      "median": 357.556328,
+      "max": 1124.1789411999978,
+      "mean": 566.2441993999993,
+      "coefficientOfVariation": 0.7040615756884456
+    },
+    "p99Ms": {
+      "min": 4292.731817040002,
+      "median": 4441.376713599998,
+      "max": 4747.05397,
+      "mean": 4493.720833546667,
+      "coefficientOfVariation": 0.042088342070620316
+    },
+    "unexpectedFailures": {
+      "min": 374,
+      "median": 413,
+      "max": 422,
+      "mean": 403.0,
+      "coefficientOfVariation": 0.05169396192555747
+    }
+  },
+  "gate": {
+    "allK6ExitZero": true,
+    "allRunsPlannedDuration": true,
+    "allWalletsReconciled": true,
+    "noNegativeBalances": true,
+    "noClientObservedInvariantViolations": true,
+    "hotWalletK6ExitZero": true,
+    "hotWalletPlannedDuration": true,
+    "hotWalletReconciled": true,
+    "hotWalletNoNegativeBalance": true
+  },
+  "hotWallet": {
+    "profile": "200 accounts / 100 target RPS / 1 receiving wallet / 1920 seconds",
+    "requests": 176909,
+    "achievedRps": 91.46686811004868,
+    "p50Ms": 9.58515,
+    "p95Ms": 1807.2751064000001,
+    "p99Ms": 4116.678973960004,
+    "unexpectedFailures": 14075,
+    "httpFailedRate": 0.12380376351683633,
+    "failuresByRequestAndActual": [
+      {
+        "request": "transfer",
+        "actual": "409",
+        "count": 7419
+      },
+      {
+        "request": "transfer",
+        "actual": "500",
+        "count": 6656
+      }
+    ],
+    "invariantViolations": 0,
+    "walletMismatchCount": 0,
+    "negativeBalanceCount": 0,
+    "deadlocks": 6656,
+    "rowLockWaitsDelta": 22411.0,
+    "rowLockTimeMsDelta": 693680.0,
+    "rawSha256": "84a4450bec33151d8a01626fdfd6a1e645b8e3b5122e6dd5c6f6e91a24e3c87c"
+  }
+}

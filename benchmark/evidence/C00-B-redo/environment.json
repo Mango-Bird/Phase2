@@ -1,0 +1,18 @@
+{
+  "applicationBaseSha": "2797255bdf03558fc010f446b7141e7e3ec594f8",
+  "operatingSystem": "Microsoft Windows NT 10.0.26300.0",
+  "cpu": "12th Gen Intel(R) Core(TM) i5-12450HX",
+  "logicalProcessors": 12,
+  "totalMemoryBytes": 12578578432,
+  "dockerServer": "29.6.1",
+  "applicationImageId": "sha256:86351d70adb7066db6e337d8d8b280400703093bd8720ac0217db4ae75a7dd71",
+  "java": "Eclipse Temurin OpenJDK 21.0.13.1+2 LTS",
+  "gradle": "9.8.1",
+  "springBoot": "4.0.8",
+  "mysql": "8.4.13",
+  "mysqlImage": "mysql@sha256:a81d043930e51745522bd5c430961cf8286f0a23f0a9a2a6e0108f7ea71b0902",
+  "k6": "2.4.0",
+  "k6Image": "grafana/k6@sha256:3d8e5c7f1d53ec59408c2ffbd9943602a0985ffcbd4a2430ec00f3ffca89796e",
+  "topology": "Application, MySQL, and k6 run in separate containers on one Docker Desktop host. k6 calls the application over the Compose bridge network.",
+  "knownLimitation": "The three containers share CPU, RAM, disk, and Docker Desktop. Host RAM averaged 89.6-93.3% and peaked at 96.4-97.5%, so this is a reproducible local comparison baseline rather than an isolated capacity result."
+}

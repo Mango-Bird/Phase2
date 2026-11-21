@@ -1,0 +1,209 @@
+{
+    "root_group": {
+        "path": "",
+        "id": "d41d8cd98f00b204e9800998ecf8427e",
+        "groups": {},
+        "checks": {
+            "register_status": {
+                "name": "register_status",
+                "path": "::register_status",
+                "id": "34bb0434c298ea21063f05c6b8b2bbc2",
+                "passes": 200,
+                "fails": 0
+            },
+            "login_status": {
+                "id": "b5ca5b0722d53d4efdd33fe5abe5887b",
+                "passes": 1338,
+                "fails": 0,
+                "name": "login_status",
+                "path": "::login_status"
+            },
+            "linkBank_status": {
+                "fails": 0,
+                "name": "linkBank_status",
+                "path": "::linkBank_status",
+                "id": "9e034750be9ae57896cd78d2287cc505",
+                "passes": 1484
+            },
+            "viewBalance_status": {
+                "name": "viewBalance_status",
+                "path": "::viewBalance_status",
+                "id": "27651ac6c9052dd32978b92a9e07f937",
+                "passes": 25428,
+                "fails": 0
+            },
+            "viewAccounts_status": {
+                "passes": 15225,
+                "fails": 0,
+                "name": "viewAccounts_status",
+                "path": "::viewAccounts_status",
+                "id": "ace7b74c2ed9cc8f155f50f798ee3d1f"
+            },
+            "topUp_status": {
+                "passes": 45299,
+                "fails": 0,
+                "name": "topUp_status",
+                "path": "::topUp_status",
+                "id": "8ffb3aa1f73bb1454d11c39ca4d87d25"
+            },
+            "viewHistory_status": {
+                "name": "viewHistory_status",
+                "path": "::viewHistory_status",
+                "id": "5fbadef8fad0be79817b92164d003b3c",
+                "passes": 9990,
+                "fails": 0
+            },
+            "withdraw_status": {
+                "id": "c4df2f4933b2e17ccc08a4c1ca82aeae",
+                "passes": 21176,
+                "fails": 0,
+                "name": "withdraw_status",
+                "path": "::withdraw_status"
+            },
+            "transfer_status": {
+                "name": "transfer_status",
+                "path": "::transfer_status",
+                "id": "b5f91a3d347519dc1c691d5499ecf4c8",
+                "passes": 42691,
+                "fails": 14075
+            }
+        },
+        "name": ""
+    },
+    "metrics": {
+        "http_req_blocked": {
+            "p(95)": 0.3095800000000002,
+            "p(99)": 0.46443020000000074,
+            "avg": 0.049011301471376924,
+            "min": 0,
+            "med": 0.006869,
+            "max": 423.046923,
+            "p(90)": 0.018462400000000025
+        },
+        "iteration_duration": {
+            "avg": 1861842.5637386683,
+            "min": 1802038.055775,
+            "med": 1861220.7166320002,
+            "max": 1923455.03978,
+            "p(90)": 1910362.971649,
+            "p(95)": 1914004.2929502998,
+            "p(99)": 1920956.95613749
+        },
+        "http_req_duration{expected_response:true}": {
+            "p(90)": 162.28085079999983,
+            "p(95)": 1359.0054833999914,
+            "p(99)": 3931.531201020002,
+            "avg": 196.7699806701303,
+            "min": 0.938092,
+            "med": 9.520261,
+            "max": 12857.057314
+        },
+        "http_req_receiving": {
+            "p(99)": 0.7089352000000135,
+            "avg": 0.1648298893725023,
+            "min": 0.018647,
+            "med": 0.121709,
+            "max": 90.415017,
+            "p(90)": 0.2642982,
+            "p(95)": 0.34439040000000004
+        },
+        "http_req_sending": {
+            "min": 0.007238,
+            "med": 0.038749,
+            "max": 103.240035,
+            "p(90)": 0.07568440000000003,
+            "p(95)": 0.0939732,
+            "p(99)": 0.13250036000000012,
+            "avg": 0.04662079248088027
+        },
+        "iterations": {
+            "count": 200,
+            "rate": 0.10340555665347573
+        },
+        "checks": {
+            "passes": 162831,
+            "fails": 14075,
+            "value": 0.9204379727086701
+        },
+        "http_reqs": {
+            "count": 176909,
+            "rate": 91.46686811004868
+        },
+        "http_req_tls_handshaking": {
+            "p(95)": 0,
+            "p(99)": 0,
+            "avg": 0,
+            "min": 0,
+            "med": 0,
+            "max": 0,
+            "p(90)": 0
+        },
+        "http_req_waiting": {
+            "p(99)": 4116.496850680003,
+            "avg": 236.29929405139202,
+            "min": 0.878845,
+            "med": 9.397243,
+            "max": 12856.984033,
+            "p(90)": 492.8706308000003,
+            "p(95)": 1807.1552366
+        },
+        "vus": {
+            "value": 1,
+            "min": 1,
+            "max": 200
+        },
+        "request_outcome": {
+            "rate": 91.46531702669888,
+            "count": 176906
+        },
+        "data_sent": {
+            "count": 81278642,
+            "rate": 42023.31610024285
+        },
+        "http_req_connecting": {
+            "med": 0,
+            "max": 422.900062,
+            "p(90)": 0,
+            "p(95)": 0.20642300000000002,
+            "p(99)": 0.31489608000000097,
+            "avg": 0.03187714085207645,
+            "min": -1.682873
+        },
+        "unexpected_failure": {
+            "passes": 14075,
+            "fails": 162831,
+            "value": 0.07956202729132986
+        },
+        "http_req_failed": {
+            "passes": 21902,
+            "fails": 155007,
+            "value": 0.12380376351683633
+        },
+        "data_received": {
+            "count": 703910626,
+            "rate": 363941.3505791328
+        },
+        "http_req_duration": {
+            "avg": 236.51074473325406,
+            "min": 0.938092,
+            "med": 9.58515,
+            "max": 12857.057314,
+            "p(90)": 493.0320458000001,
+            "p(95)": 1807.2751064000001,
+            "p(99)": 4116.678973960004
+        },
+        "vus_max": {
+            "value": 200,
+            "min": 200,
+            "max": 200
+        }
+    },
+    "setup_data": {
+        "receivingWalletNumbers": [
+            "396040390045"
+        ],
+        "runId": "mwps42g80vrc",
+        "startTime": 1795227518508,
+        "testEndTime": 1795229438508
+    }
+}

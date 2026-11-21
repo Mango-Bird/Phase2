@@ -1,0 +1,245 @@
+{
+  "generatedAt": "2026-11-21T01:55:24.750794+00:00",
+  "k6ExitCode": 0,
+  "plannedDurationSec": 1920.0,
+  "executor": "ramping-vus",
+  "droppedIterations": null,
+  "droppedIterationsNote": "N/A: ramping-vus is a closed-model executor and does not emit dropped_iterations.",
+  "requests": 175386,
+  "achievedRps": 90.7075407127355,
+  "latencyMs": {
+    "avg": 210.51757189685847,
+    "p50": 8.503226,
+    "p95": 357.556328,
+    "p99": 4441.376713599998,
+    "max": 33551.641676
+  },
+  "httpFailedRate": 0.04717594334781568,
+  "unexpectedFailures": 422,
+  "checksFailed": 422,
+  "failuresByRequestAndActual": [
+    {
+      "request": "topUp",
+      "actual": "500",
+      "count": 8
+    },
+    {
+      "request": "transfer",
+      "actual": "409",
+      "count": 324
+    },
+    {
+      "request": "transfer",
+      "actual": "500",
+      "count": 77
+    },
+    {
+      "request": "viewAccounts",
+      "actual": "500",
+      "count": 3
+    },
+    {
+      "request": "viewBalance",
+      "actual": "500",
+      "count": 6
+    },
+    {
+      "request": "viewHistory",
+      "actual": "500",
+      "count": 1
+    },
+    {
+      "request": "withdraw",
+      "actual": "500",
+      "count": 3
+    }
+  ],
+  "failureDetails": [
+    {
+      "request": "transfer",
+      "actual": "409",
+      "detail": "409 | Conflict | Concurrent transaction conflict. Please try again. | /api/v1/transactions/transfer",
+      "count": 324
+    },
+    {
+      "request": "transfer",
+      "actual": "500",
+      "detail": "500 | database deadlock while updating wallets",
+      "count": 71
+    },
+    {
+      "request": "topUp",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 8
+    },
+    {
+      "request": "transfer",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 6
+    },
+    {
+      "request": "viewBalance",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 6
+    },
+    {
+      "request": "viewAccounts",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 3
+    },
+    {
+      "request": "withdraw",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 3
+    },
+    {
+      "request": "viewHistory",
+      "actual": "500",
+      "detail": "500 | could not open JPA EntityManager (connection pool unavailable)",
+      "count": 1
+    }
+  ],
+  "invariantViolations": 0,
+  "walletReconciliation": {
+    "walletCount": 250,
+    "mismatchCount": 0,
+    "actualTotal": 1703002450,
+    "expectedTotal": 1703002450,
+    "negativeBalanceCount": 0
+  },
+  "rawMetrics": {
+    "file": "k6_raw.csv",
+    "bytes": 297686915,
+    "sha256": "ad1b9d310798c73a9e6df08f9c308241056d0a126c80d86ce6edcb9795abbb02",
+    "retention": "Local evidence; upload as PR/CI artifact instead of committing the oversized CSV."
+  },
+  "resources": {
+    "cpu.percent.host": {
+      "min": 0.0,
+      "avg": 35.34077448747153,
+      "max": 55.4,
+      "samples": 439
+    },
+    "ram.used_bytes.host": {
+      "min": 11345342464.0,
+      "avg": 11735295398.1959,
+      "max": 12122759168.0,
+      "samples": 439
+    },
+    "ram.available_bytes.host": {
+      "min": 455819264.0,
+      "avg": 843283033.8041003,
+      "max": 1233235968.0,
+      "samples": 439
+    },
+    "ram.percent.host": {
+      "min": 90.2,
+      "avg": 93.29498861047836,
+      "max": 96.4,
+      "samples": 439
+    },
+    "disk.read_bytes.host": {
+      "min": 77953413120.0,
+      "avg": 81522405155.57175,
+      "max": 83683076608.0,
+      "samples": 439
+    },
+    "disk.write_bytes.host": {
+      "min": 100950313472.0,
+      "avg": 124284187856.76538,
+      "max": 149836148736.0,
+      "samples": 439
+    },
+    "net.sent_bytes.host": {
+      "min": 41551538.0,
+      "avg": 44211265.42369021,
+      "max": 45969870.0,
+      "samples": 439
+    },
+    "net.recv_bytes.host": {
+      "min": 1188984841.0,
+      "avg": 1408339610.0387244,
+      "max": 1476859622.0,
+      "samples": 439
+    },
+    "mysql.Threads_connected.dw-mysql": {
+      "min": 11.0,
+      "avg": 11.002277904328018,
+      "max": 12.0,
+      "samples": 439
+    },
+    "mysql.Threads_running.dw-mysql": {
+      "min": 2.0,
+      "avg": 3.4715261958997723,
+      "max": 12.0,
+      "samples": 439
+    },
+    "mysql.Queries.dw-mysql": {
+      "min": 2380348.0,
+      "avg": 3332419.1298405468,
+      "max": 4364824.0,
+      "samples": 439,
+      "delta": 1984476.0
+    },
+    "mysql.Innodb_row_lock_waits.dw-mysql": {
+      "min": 449.0,
+      "avg": 695.1981776765376,
+      "max": 898.0,
+      "samples": 439,
+      "delta": 449.0
+    },
+    "mysql.Innodb_row_lock_time.dw-mysql": {
+      "min": 24925.0,
+      "avg": 41785.76082004556,
+      "max": 52843.0,
+      "samples": 439,
+      "delta": 27918.0
+    },
+    "docker.cpu_percent.dw-app": {
+      "min": 0.13,
+      "avg": 26.275968109339406,
+      "max": 314.63,
+      "samples": 439
+    },
+    "docker.memory_used_bytes.dw-app": {
+      "min": 575563366.4,
+      "avg": 601729039.8615035,
+      "max": 609327513.6,
+      "samples": 439
+    },
+    "docker.pids.dw-app": {
+      "min": 47.0,
+      "avg": 203.4031890660592,
+      "max": 239.0,
+      "samples": 439
+    },
+    "docker.cpu_percent.dw-mysql": {
+      "min": 0.66,
+      "avg": 26.43389521640091,
+      "max": 78.47,
+      "samples": 439
+    },
+    "docker.memory_used_bytes.dw-mysql": {
+      "min": 634598195.2,
+      "avg": 657396960.3936218,
+      "max": 677904384.0,
+      "samples": 439
+    },
+    "docker.pids.dw-mysql": {
+      "min": 48.0,
+      "avg": 48.00227790432802,
+      "max": 49.0,
+      "samples": 439
+    }
+  },
+  "appLogCounts": {
+    "deadlocks": 71,
+    "errors": 0,
+    "warnings": 196
+  }
+}

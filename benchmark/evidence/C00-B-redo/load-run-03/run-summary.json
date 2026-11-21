@@ -1,0 +1,184 @@
+{
+  "generatedAt": "2026-11-21T01:55:33.382245+00:00",
+  "k6ExitCode": 0,
+  "plannedDurationSec": 1920.0,
+  "executor": "ramping-vus",
+  "droppedIterations": null,
+  "droppedIterationsNote": "N/A: ramping-vus is a closed-model executor and does not emit dropped_iterations.",
+  "requests": 178913,
+  "achievedRps": 92.55233992372415,
+  "latencyMs": {
+    "avg": 173.4526116653057,
+    "p50": 8.422888,
+    "p95": 1124.1789411999978,
+    "p99": 4292.731817040002,
+    "max": 11256.842354
+  },
+  "httpFailedRate": 0.04670985339243096,
+  "unexpectedFailures": 413,
+  "checksFailed": 413,
+  "failuresByRequestAndActual": [
+    {
+      "request": "transfer",
+      "actual": "409",
+      "count": 349
+    },
+    {
+      "request": "transfer",
+      "actual": "500",
+      "count": 64
+    }
+  ],
+  "failureDetails": [
+    {
+      "request": "transfer",
+      "actual": "409",
+      "detail": "409 | Conflict | Concurrent transaction conflict. Please try again. | /api/v1/transactions/transfer",
+      "count": 349
+    },
+    {
+      "request": "transfer",
+      "actual": "500",
+      "detail": "500 | database deadlock while updating wallets",
+      "count": 64
+    }
+  ],
+  "invariantViolations": 0,
+  "walletReconciliation": {
+    "walletCount": 250,
+    "mismatchCount": 0,
+    "actualTotal": 1740760927,
+    "expectedTotal": 1740760927,
+    "negativeBalanceCount": 0
+  },
+  "rawMetrics": {
+    "file": "k6_raw.csv",
+    "bytes": 303663888,
+    "sha256": "bba09c3b0af9adab610d877536a7b34f59317648c04439e2fa80e927d1118ac2",
+    "retention": "Local evidence; upload as PR/CI artifact instead of committing the oversized CSV."
+  },
+  "resources": {
+    "cpu.percent.host": {
+      "min": 0.0,
+      "avg": 34.45875831485588,
+      "max": 51.1,
+      "samples": 451
+    },
+    "ram.used_bytes.host": {
+      "min": 10942468096.0,
+      "avg": 11268941810.37694,
+      "max": 12172603392.0,
+      "samples": 451
+    },
+    "ram.available_bytes.host": {
+      "min": 405975040.0,
+      "avg": 1309636621.6230597,
+      "max": 1636110336.0,
+      "samples": 451
+    },
+    "ram.percent.host": {
+      "min": 87.0,
+      "avg": 89.58847006651885,
+      "max": 96.8,
+      "samples": 451
+    },
+    "disk.read_bytes.host": {
+      "min": 84398366720.0,
+      "avg": 87718137541.53436,
+      "max": 89312678912.0,
+      "samples": 451
+    },
+    "disk.write_bytes.host": {
+      "min": 150589415424.0,
+      "avg": 173467094976.42572,
+      "max": 198689563648.0,
+      "samples": 451
+    },
+    "net.sent_bytes.host": {
+      "min": 46083668.0,
+      "avg": 47690184.99556541,
+      "max": 49559327.0,
+      "samples": 451
+    },
+    "net.recv_bytes.host": {
+      "min": 1477413243.0,
+      "avg": 1481087080.217295,
+      "max": 1484884586.0,
+      "samples": 451
+    },
+    "mysql.Threads_connected.dw-mysql": {
+      "min": 11.0,
+      "avg": 11.002217294900221,
+      "max": 12.0,
+      "samples": 451
+    },
+    "mysql.Threads_running.dw-mysql": {
+      "min": 2.0,
+      "avg": 3.494456762749446,
+      "max": 12.0,
+      "samples": 451
+    },
+    "mysql.Queries.dw-mysql": {
+      "min": 4365202.0,
+      "avg": 5361544.77383592,
+      "max": 6390466.0,
+      "samples": 451,
+      "delta": 2025264.0
+    },
+    "mysql.Innodb_row_lock_waits.dw-mysql": {
+      "min": 898.0,
+      "avg": 1113.330376940133,
+      "max": 1359.0,
+      "samples": 451,
+      "delta": 461.0
+    },
+    "mysql.Innodb_row_lock_time.dw-mysql": {
+      "min": 52843.0,
+      "avg": 64343.69401330377,
+      "max": 78502.0,
+      "samples": 451,
+      "delta": 25659.0
+    },
+    "docker.cpu_percent.dw-app": {
+      "min": 0.13,
+      "avg": 25.388758314855874,
+      "max": 122.01,
+      "samples": 451
+    },
+    "docker.memory_used_bytes.dw-app": {
+      "min": 607964364.8,
+      "avg": 609005500.7929046,
+      "max": 610900377.6,
+      "samples": 451
+    },
+    "docker.pids.dw-app": {
+      "min": 236.0,
+      "avg": 236.43458980044346,
+      "max": 238.0,
+      "samples": 451
+    },
+    "docker.cpu_percent.dw-mysql": {
+      "min": 0.6,
+      "avg": 26.445853658536585,
+      "max": 130.56,
+      "samples": 451
+    },
+    "docker.memory_used_bytes.dw-mysql": {
+      "min": 697198182.4,
+      "avg": 707944342.6483371,
+      "max": 715128832.0,
+      "samples": 451
+    },
+    "docker.pids.dw-mysql": {
+      "min": 48.0,
+      "avg": 48.01773835920177,
+      "max": 54.0,
+      "samples": 451
+    }
+  },
+  "appLogCounts": {
+    "deadlocks": 64,
+    "errors": 0,
+    "warnings": 128
+  }
+}
