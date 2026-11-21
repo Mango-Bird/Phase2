@@ -221,7 +221,7 @@ Candidate SHA cuối và quyết định A có thể ghi trên PR body/comment, 
 - [ ] Tách config test/dev/production; production dùng validate thay vì update.
 - [ ] Testcontainers MySQL hoặc DB test biệt lập tương đương; CI không dùng DB cá nhân.
 - [x] CI chạy clean build và bộ unit/web/context hiện tại, lưu artifact test/JAR.
-- [ ] Bổ sung DB integration tests nghiệp vụ ở C02-B và architecture tests ở C03; không đánh dấu đã có chỉ vì contextLoads pass.
+- [x] Bổ sung DB integration tests nghiệp vụ ở C02-B và architecture tests ở C03; C03-B có negative fixtures chứng minh rule bắt import nội bộ và cycle.
 - [ ] Loại bỏ xung đột giữa SQL init của Docker và migration owner; test cả volume mới và DB đã tồn tại.
 
 **Contract:** DB trống khởi tạo được; DB Phase 1 có user/ví/liên kết/giao dịch nâng cấp không mất giá trị; restart không chạy lặp migration. Schema không tương thích phải fail rõ. Rollback ứng dụng chỉ khi schema tương thích; migration đã áp dụng được sửa bằng migration mới, không sửa file cũ.
@@ -436,7 +436,7 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 | C01-A | A | DECIDED / READY FOR A: 4 ADR và public contracts v1 đã soạn | A review/merge để ACCEPTED; xem contract C01-A-r1 |
 | C02-CI | A | MERGED + VERIFIED | CI/rulesets hoạt động; bảo trì theo mỗi SHA |
 | C02-B | B | TODO | Migration và DB integration harness, A review |
-| C03-B / C03-A | B rồi A | TODO | Tách PR và dependency như mục 5 |
+| C03-B / C03-A | B rồi A | C03-B READY FOR A REVIEW; C03-A TODO | C03-B giữ đúng một Wallet legacy bridge được liệt kê; A gỡ bridge trong C03-A |
 | C04-A / C05-A | A | TODO | Idempotency và concurrency, A tự kiểm tra |
 | C06-B / C06-A | B rồi A | TODO | Storage rồi publisher, A nghiệm thu |
 | C07-B | B | TODO | Worker/inbox/recovery, A review |

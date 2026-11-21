@@ -9,15 +9,15 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import sa.uet.digitalwallet_system.adapter.in.security.JwtAuthenticationFilter;
-import sa.uet.digitalwallet_system.adapter.in.security.SecurityConfig;
+import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
+import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
 import sa.uet.digitalwallet_system.adapter.in.web.controller.TransactionController;
 import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.adapter.out.persistence.TransactionPersistenceAdapter;
 import sa.uet.digitalwallet_system.adapter.out.persistence.entity.TransactionJpaEntity;
 import sa.uet.digitalwallet_system.adapter.out.persistence.mapper.TransactionEntityMapper;
 import sa.uet.digitalwallet_system.adapter.out.persistence.repository.TransactionRepository;
-import sa.uet.digitalwallet_system.adapter.out.security.JwtTokenGenerator;
+import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
 import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
 import sa.uet.digitalwallet_system.application.port.out.*;
 import sa.uet.digitalwallet_system.application.service.TransactionService;
@@ -35,12 +35,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = TransactionController.class, properties = {
         "app.jwt.secret=get-transactions-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenGenerator.class,
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
         TransactionService.class, TransactionPersistenceAdapter.class, GlobalExceptionHandler.class})
 class GetTransactionsEndpointTest {
     private static final String PATH = "/api/v1/transactions";
     @Autowired WebApplicationContext context;
-    @Autowired JwtTokenGenerator tokenGenerator;
+    @Autowired JwtTokenService tokenGenerator;
     @MockitoBean GetWalletUseCase getWalletUseCase;
     @MockitoBean LoadWalletPort loadWalletPort;
     @MockitoBean SaveWalletPort saveWalletPort;
@@ -117,8 +117,7 @@ class GetTransactionsEndpointTest {
         return mvc.perform(get(PATH).header("Authorization", "Bearer " + jwt));
     }
 
-    private String token(long userId) { return tokenGenerator.generateToken(User.builder().id(userId)
-            .username("history-user-" + userId).role("ROLE_USER").build()); }
+    private String token(long userId) { return tokenGenerator.issue(userId, "history-user-" + userId, "ROLE_USER").value(); }
 
     private void stubWallet(long userId, long walletId) {
         when(getWalletUseCase.getWallet(userId)).thenReturn(Wallet.builder().id(walletId)
