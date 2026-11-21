@@ -14,7 +14,6 @@ $runDir = Join-Path $repoRoot "benchmark\evidence\C00-B-redo\$RunName"
 if (Test-Path -LiteralPath $runDir) {
     throw "Run directory already exists: $runDir"
 }
-New-Item -ItemType Directory -Path $runDir | Out-Null
 
 function Invoke-Docker([string[]]$Arguments) {
     & docker @Arguments
@@ -37,13 +36,53 @@ CREATE DATABASE digitalwallet_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_c
 
 Push-Location $repoRoot
 try {
-    Invoke-Docker @('compose', '-p', $ComposeProject, 'up', '-d', '--wait')
+    $baseSha = (& git rev-parse HEAD).Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve checkout SHA' }
+    $sourceFingerprint = (& python (Join-Path $PSScriptRoot 'source_provenance.py') `
+        fingerprint --repo-root $repoRoot).Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $sourceFingerprint) {
+        throw 'Failed to fingerprint SUT Docker build inputs'
+    }
+
+    Invoke-Docker @(
+        'compose', '-p', $ComposeProject, 'build',
+        '--build-arg', "APP_SOURCE_SHA=$baseSha",
+        '--build-arg', "APP_SOURCE_FINGERPRINT=$sourceFingerprint",
+        'app'
+    )
+    $builtImageReference = "${ComposeProject}-app"
+    $builtImageId = (& docker image inspect $builtImageReference --format '{{.Id}}').Trim()
+    if ($LASTEXITCODE -ne 0 -or -not $builtImageId) { throw 'Failed to resolve built SUT image ID' }
+    $imageRevision = (& docker image inspect $builtImageId `
+        --format '{{index .Config.Labels "org.opencontainers.image.revision"}}').Trim()
+    $imageSourceFingerprint = (& docker image inspect $builtImageId `
+        --format '{{index .Config.Labels "io.mangobird.phase2.source-fingerprint"}}').Trim()
+
+    Invoke-Docker @('compose', '-p', $ComposeProject, 'up', '-d', '--no-build', '--wait')
+    $runningImageId = (& docker inspect dw-app --format '{{.Image}}').Trim()
+    if ($LASTEXITCODE -ne 0) { throw 'Failed to resolve running SUT image ID' }
+    & python (Join-Path $PSScriptRoot 'source_provenance.py') verify `
+        --expected-revision $baseSha `
+        --expected-fingerprint $sourceFingerprint `
+        --built-image-id $builtImageId `
+        --running-image-id $runningImageId `
+        --image-revision $imageRevision `
+        --image-fingerprint $imageSourceFingerprint
+    if ($LASTEXITCODE -ne 0) {
+        throw 'SUT image/source provenance verification failed; refusing to create baseline evidence'
+    }
+
+    New-Item -ItemType Directory -Path $runDir | Out-Null
     Reset-TestDatabase
 
     $metadata = [ordered]@{
         runName = $RunName
         profile = $Profile
-        baseSha = (& git rev-parse HEAD).Trim()
+        baseSha = $baseSha
+        applicationImageId = $runningImageId
+        applicationSourceFingerprint = $sourceFingerprint
+        applicationRevisionLabel = $imageRevision
+        sutProvenanceVerified = $true
         dirtyWorktree = [bool](& git status --porcelain)
         startedAt = (Get-Date).ToUniversalTime().ToString('o')
         os = [System.Environment]::OSVersion.VersionString
@@ -105,12 +144,17 @@ try {
         Set-Content -LiteralPath (Join-Path $runDir 'reconciliation.tsv') -Encoding utf8
     if ($LASTEXITCODE -ne 0) { throw 'Database reconciliation query failed' }
 
-    & python (Join-Path $PSScriptRoot 'summarize_run.py') --run-dir $runDir --k6-exit $k6Exit
-    if ($LASTEXITCODE -ne 0) { throw 'Run summarization failed' }
+    & python (Join-Path $PSScriptRoot 'summarize_run.py') `
+        --run-dir $runDir --k6-exit $k6Exit --profile $Profile --repo-root $repoRoot
+    $summaryExit = $LASTEXITCODE
 
     $metadata.completedAt = (Get-Date).ToUniversalTime().ToString('o')
     $metadata.k6ExitCode = $k6Exit
+    $metadata.summaryExitCode = $summaryExit
     $metadata | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath (Join-Path $runDir 'metadata.json') -Encoding utf8
+    if ($summaryExit -ne 0) {
+        throw "Run report was written, but financial/completeness gates failed (exit $summaryExit)"
+    }
     exit $k6Exit
 }
 finally {

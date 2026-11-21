@@ -13,6 +13,10 @@ evidence. It intentionally does not change application behavior.
   reproducible local baseline, not an isolated capacity claim.
 - Each measured run recreates `digitalwallet_db` from the Phase 1 schema. The
   application process stays warm between runs so the JVM/JIT is not restarted.
+- Before creating a run directory, the runner fingerprints every file copied by
+  the application Dockerfile, builds the SUT with revision/fingerprint labels,
+  and verifies that the running container uses that exact image ID. A stale
+  container or mismatched label fails without recording a new baseline.
 
 ## Commands
 
@@ -45,6 +49,8 @@ into the three-run standard-load median.
 ## Evidence per run
 
 - `metadata.json`: base SHA, hardware, topology and pinned tool versions.
+  New runs also contain `applicationImageId`, `applicationSourceFingerprint`,
+  `applicationRevisionLabel`, and `sutProvenanceVerified=true`.
 - `k6_summary.json`: native k6 summary including p50/p95/p99.
 - `run-summary.json`: normalized RPS, latency, failures, resources and database
   reconciliation.
@@ -59,3 +65,26 @@ The reconciliation assumes a clean C00 database where every wallet opens at
 zero. Expected balance is `topup + transfer-in - withdraw - transfer-out` over
 the append-only Phase 1 transaction history. A zero mismatch count is useful
 evidence for this workload, not proof against every possible concurrency bug.
+
+The per-run summarizer rejects missing required k6 metrics, malformed or empty
+reconciliation data, and wallet coverage other than the profile contract
+(`15` smoke, `250` load, `201` hot-wallet). It writes `run-summary.json` before
+returning nonzero for completeness, mismatch, negative-balance, or client-side
+invariant failures. HTTP 409/500 observations remain performance evidence and
+do not by themselves fail a financial gate.
+
+The aggregate command requires all three load summaries and the hot-wallet
+summary. It likewise writes its report before returning nonzero when a mandatory
+financial/completeness gate fails:
+
+```powershell
+python benchmark/scripts/aggregate_runs.py `
+  --evidence-dir benchmark/evidence/C00-B-redo `
+  --output benchmark/evidence/C00-B-redo/aggregate-summary.json
+```
+
+Harness-only regression tests do not execute k6 or change benchmark evidence:
+
+```powershell
+python -m unittest discover -s benchmark/tests -p 'test_*.py'
+```
