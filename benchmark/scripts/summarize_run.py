@@ -2,6 +2,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import os
 import sys
 from collections import Counter, defaultdict
@@ -17,7 +18,8 @@ REQUIRED_METRICS = {
     'http_reqs': {'count', 'rate'},
     'http_req_duration': {'avg', 'med', 'p(95)', 'p(99)', 'max'},
     'http_req_failed': {'value'},
-    'unexpected_failure': {'passes'},
+    'request_outcome': {'count'},
+    'unexpected_failure': {'passes', 'fails'},
     'checks': {'fails'},
 }
 
@@ -79,7 +81,7 @@ def read_reconciliation(path, errors):
                     })
                 except (TypeError, ValueError):
                     errors.append(f'invalid reconciliation row at line {line_number}')
-    except (OSError, csv.Error) as error:
+    except (OSError, UnicodeError, csv.Error) as error:
         errors.append(f'cannot read reconciliation.tsv: {error}')
     if not wallets:
         errors.append('reconciliation.tsv contains no wallet data')
@@ -90,31 +92,78 @@ def read_raw_metrics(path, errors):
     failures = Counter()
     failure_details = Counter()
     violations = 0
+    total_rows = 0
+    malformed_rows = 0
+    invalid_workload_rows = 0
+    request_outcome_samples = 0
+    request_outcome_failures = 0
     digest = hashlib.sha256()
     raw_bytes = None
     if not os.path.isfile(path):
         errors.append('missing k6_raw.csv')
-        return failures, failure_details, violations, raw_bytes, None
+        return {
+            'failures': failures, 'failureDetails': failure_details,
+            'violations': violations, 'bytes': raw_bytes, 'sha256': None,
+            'totalRows': total_rows, 'malformedRows': malformed_rows,
+            'invalidWorkloadRows': invalid_workload_rows,
+            'requestOutcomeSamples': request_outcome_samples,
+            'requestOutcomeFailures': request_outcome_failures,
+        }
     try:
         raw_bytes = os.path.getsize(path)
         with open(path, 'rb') as file:
             for block in iter(lambda: file.read(1024 * 1024), b''):
                 digest.update(block)
+            if raw_bytes:
+                file.seek(-1, os.SEEK_END)
+                if file.read(1) != b'\n':
+                    errors.append('k6_raw.csv does not end with a complete CSV record')
         with open(path, newline='', encoding='utf-8-sig') as file:
-            reader = csv.DictReader(file)
+            reader = csv.DictReader(file, strict=True)
             actual_columns = set(reader.fieldnames or [])
             missing = sorted(REQUIRED_RAW_COLUMNS - actual_columns)
             if missing:
                 errors.append(f'k6_raw.csv missing columns: {", ".join(missing)}')
-                return failures, failure_details, violations, raw_bytes, digest.hexdigest()
+                return {
+                    'failures': failures, 'failureDetails': failure_details,
+                    'violations': violations, 'bytes': raw_bytes,
+                    'sha256': digest.hexdigest(), 'totalRows': total_rows,
+                    'malformedRows': malformed_rows,
+                    'invalidWorkloadRows': invalid_workload_rows,
+                    'requestOutcomeSamples': request_outcome_samples,
+                    'requestOutcomeFailures': request_outcome_failures,
+                }
             for row in reader:
-                metric_name = row.get('metric_name')
+                total_rows += 1
+                if None in row or any(row.get(column) is None for column in REQUIRED_RAW_COLUMNS):
+                    malformed_rows += 1
+                    continue
+                metric_name = (row.get('metric_name') or '').strip()
+                try:
+                    metric_value = float(row.get('metric_value') or '')
+                    if not math.isfinite(metric_value):
+                        raise ValueError
+                except ValueError:
+                    malformed_rows += 1
+                    continue
                 if metric_name not in ('request_outcome', 'invariant_violation'):
                     continue
                 tags = dict(parse_qsl(row.get('extra_tags') or '', keep_blank_values=True))
                 if metric_name == 'invariant_violation':
+                    if metric_value != 1:
+                        invalid_workload_rows += 1
+                        continue
                     violations += 1
-                elif tags.get('label') == 'failure':
+                    continue
+
+                if (metric_value != 1 or tags.get('label') not in ('success', 'failure')
+                        or not tags.get('request') or not tags.get('expected')
+                        or not tags.get('actual')):
+                    invalid_workload_rows += 1
+                    continue
+                request_outcome_samples += 1
+                if tags.get('label') == 'failure':
+                    request_outcome_failures += 1
                     request = tags.get('request', 'unknown')
                     actual = tags.get('actual', 'unknown')
                     failures[(request, actual)] += 1
@@ -136,9 +185,50 @@ def read_raw_metrics(path, errors):
                         except (json.JSONDecodeError, TypeError, AttributeError):
                             pass
                     failure_details[(request, actual, detail_key)] += 1
-    except (OSError, csv.Error) as error:
+    except (OSError, UnicodeError, csv.Error) as error:
         errors.append(f'cannot read k6_raw.csv: {error}')
-    return failures, failure_details, violations, raw_bytes, digest.hexdigest()
+    if total_rows == 0:
+        errors.append('k6_raw.csv contains no data rows')
+    if malformed_rows:
+        errors.append(f'k6_raw.csv contains {malformed_rows} malformed or truncated rows')
+    if invalid_workload_rows:
+        errors.append(
+            f'k6_raw.csv contains {invalid_workload_rows} invalid workload metric rows')
+    if request_outcome_samples == 0:
+        errors.append('k6_raw.csv contains no valid request_outcome samples')
+    return {
+        'failures': failures, 'failureDetails': failure_details,
+        'violations': violations, 'bytes': raw_bytes,
+        'sha256': digest.hexdigest(), 'totalRows': total_rows,
+        'malformedRows': malformed_rows,
+        'invalidWorkloadRows': invalid_workload_rows,
+        'requestOutcomeSamples': request_outcome_samples,
+        'requestOutcomeFailures': request_outcome_failures,
+    }
+
+
+def validate_raw_consistency(raw, metrics):
+    errors = []
+    invariant_metric = metrics.get('invariant_violation')
+    summary_invariants = (
+        invariant_metric.get('count') if isinstance(invariant_metric, dict) else 0)
+    comparisons = (
+        ('request_outcome count', raw['requestOutcomeSamples'],
+         metric(metrics, 'request_outcome', 'count')),
+        ('unexpected_failure passes', raw['requestOutcomeFailures'],
+         metric(metrics, 'unexpected_failure', 'passes')),
+        ('unexpected_failure fails',
+         raw['requestOutcomeSamples'] - raw['requestOutcomeFailures'],
+         metric(metrics, 'unexpected_failure', 'fails')),
+        ('checks fails', raw['requestOutcomeFailures'], metric(metrics, 'checks', 'fails')),
+        ('invariant_violation count', raw['violations'], summary_invariants),
+    )
+    for label, raw_value, summary_value in comparisons:
+        if not isinstance(summary_value, (int, float)) or raw_value != summary_value:
+            errors.append(
+                f'raw/summary counter mismatch for {label}: '
+                f'raw={raw_value}, summary={summary_value}')
+    return errors
 
 
 def resource_summary(run_dir):
@@ -209,8 +299,10 @@ def main(argv=None):
     errors.extend(validate_required_metrics(metrics))
 
     wallets = read_reconciliation(os.path.join(run_dir, 'reconciliation.tsv'), errors)
-    failures, failure_details, violations, raw_bytes, raw_sha256 = read_raw_metrics(
-        os.path.join(run_dir, 'k6_raw.csv'), errors)
+    raw_error_start = len(errors)
+    raw = read_raw_metrics(os.path.join(run_dir, 'k6_raw.csv'), errors)
+    errors.extend(validate_raw_consistency(raw, metrics))
+    raw_evidence_complete = len(errors) == raw_error_start
 
     start_ms = k6.get('setup_data', {}).get('startTime') if isinstance(k6, dict) else None
     end_ms = k6.get('setup_data', {}).get('testEndTime') if isinstance(k6, dict) else None
@@ -230,14 +322,14 @@ def main(argv=None):
     financial_gate = {
         'allWalletsReconciled': bool(wallets) and mismatch_count == 0,
         'noNegativeBalances': bool(wallets) and negative_count == 0,
-        'noClientObservedInvariantViolations': violations == 0,
+        'noClientObservedInvariantViolations': raw['violations'] == 0,
     }
     completeness_gate = {
         'requiredMetricsPresent': not any(
             error.startswith(('missing required k6 metric', 'metric ')) for error in errors),
         'reconciliationHasData': bool(wallets),
         'expectedWalletCoverage': coverage_complete,
-        'rawMetricsPresent': raw_bytes is not None and raw_sha256 is not None,
+        'rawMetricsPresent': raw_evidence_complete,
         'evidenceComplete': not errors,
     }
     mandatory_gate_passed = (
@@ -268,14 +360,14 @@ def main(argv=None):
         'checksFailed': metric(metrics, 'checks', 'fails'),
         'failuresByRequestAndActual': [
             {'request': request, 'actual': actual, 'count': count}
-            for (request, actual), count in sorted(failures.items())
+            for (request, actual), count in sorted(raw['failures'].items())
         ],
         'failureDetails': [
             {'request': request, 'actual': actual, 'detail': detail, 'count': count}
             for (request, actual, detail), count in sorted(
-                failure_details.items(), key=lambda item: (-item[1], item[0]))
+                raw['failureDetails'].items(), key=lambda item: (-item[1], item[0]))
         ],
-        'invariantViolations': violations,
+        'invariantViolations': raw['violations'],
         'walletReconciliation': {
             'walletCount': wallet_count,
             'expectedWalletCount': expected_wallets,
@@ -287,8 +379,15 @@ def main(argv=None):
         },
         'rawMetrics': {
             'file': 'k6_raw.csv',
-            'bytes': raw_bytes,
-            'sha256': raw_sha256,
+            'bytes': raw['bytes'],
+            'sha256': raw['sha256'],
+            'totalRows': raw['totalRows'],
+            'requestOutcomeSamples': raw['requestOutcomeSamples'],
+            'requestOutcomeFailures': raw['requestOutcomeFailures'],
+            'malformedRows': raw['malformedRows'],
+            'invalidWorkloadRows': raw['invalidWorkloadRows'],
+            'summaryCountersConsistent': not any(
+                error.startswith('raw/summary counter mismatch') for error in errors),
             'retention': (
                 'Local evidence; upload as PR/CI artifact instead of committing '
                 'the oversized CSV.'),

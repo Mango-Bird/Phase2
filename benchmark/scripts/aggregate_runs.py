@@ -60,10 +60,42 @@ def read_summary(evidence_dir, name, profile, errors):
     if actual != expected:
         errors.append(
             f'{name} wallet coverage mismatch: expected {expected}, found {actual}')
+
+    policy = 'r1-legacy'
+    explicit_gate_errors = []
+    if 'gate' in item or 'completenessErrors' in item:
+        policy = 'r2-explicit-gate'
+        gate = item.get('gate')
+        completeness_errors = item.get('completenessErrors')
+        if not isinstance(gate, dict):
+            explicit_gate_errors.append('missing or invalid gate object')
+        else:
+            if gate.get('mandatoryPassed') is not True:
+                explicit_gate_errors.append('gate.mandatoryPassed is not true')
+            for section in ('financial', 'completeness'):
+                values = gate.get(section)
+                if not isinstance(values, dict) or not values:
+                    explicit_gate_errors.append(
+                        f'gate.{section} is missing, empty, or invalid')
+                else:
+                    failed = sorted(key for key, value in values.items() if value is not True)
+                    if failed:
+                        explicit_gate_errors.append(
+                            f'gate.{section} failed: {", ".join(failed)}')
+        if not isinstance(completeness_errors, list):
+            explicit_gate_errors.append('completenessErrors is missing or invalid')
+        elif completeness_errors:
+            explicit_gate_errors.extend(
+                f'per-run completeness error: {message}'
+                for message in completeness_errors)
+        errors.extend(f'{name}: {message}' for message in explicit_gate_errors)
+
     item['name'] = name
     item['_profile'] = profile
     item['_coverage'] = actual == expected
-    item['_complete'] = not missing and actual == expected
+    item['_summaryPolicy'] = policy
+    item['_perRunMandatoryPassed'] = not explicit_gate_errors
+    item['_complete'] = not missing and actual == expected and not explicit_gate_errors
     return item
 
 
@@ -83,6 +115,9 @@ def run_view(run):
         'negativeBalanceCount': nested(run, ('walletReconciliation', 'negativeBalanceCount')),
         'deadlocks': nested(run, ('appLogCounts', 'deadlocks')) or 0,
         'rawSha256': nested(run, ('rawMetrics', 'sha256')),
+        'summaryPolicy': run['_summaryPolicy'],
+        'perRunMandatoryPassed': run['_perRunMandatoryPassed'],
+        'perRunCompletenessErrors': run.get('completenessErrors', []),
     }
 
 
@@ -110,6 +145,8 @@ def main(argv=None):
         all(nested(run, parts) is not None for parts in REQUIRED_PATHS)
         for run in all_runs)
     expected_coverage = required_present and all(run['_coverage'] for run in all_runs)
+    all_per_run_mandatory = required_present and all(
+        run['_perRunMandatoryPassed'] for run in all_runs)
     all_k6_exit_zero = required_present and all_equal(all_runs, ('k6ExitCode',), 0)
     all_duration = required_present and all_equal(all_runs, ('plannedDurationSec',), 1920)
     all_reconciled = required_present and all_equal(
@@ -120,8 +157,9 @@ def main(argv=None):
         all_runs, ('invariantViolations',), 0)
 
     mandatory_passed = all((
-        required_present, required_fields, expected_coverage, not errors, all_k6_exit_zero,
-        all_duration, all_reconciled, no_negative, no_client_violations,
+        required_present, required_fields, expected_coverage, all_per_run_mandatory,
+        not errors, all_k6_exit_zero, all_duration, all_reconciled, no_negative,
+        no_client_violations,
     ))
 
     numeric = lambda path: [nested(run, path) for run in load_runs
@@ -136,10 +174,16 @@ def main(argv=None):
             'unexpectedFailures': stats(numeric(('unexpectedFailures',))),
         },
         'hotWallet': run_view(hot) if hot is not None else None,
+        'summaryCompatibilityPolicy': (
+            'r1 summaries without gate and completenessErrors use legacy field, coverage, '
+            'duration, exit-code, and financial checks; r2 summaries exposing either field '
+            'must provide a passing mandatory/completeness/financial gate and an empty '
+            'completenessErrors list.'),
         'gate': {
             'requiredRunSummariesPresent': required_present,
             'requiredFieldsPresent': required_fields,
             'expectedWalletCoverage': expected_coverage,
+            'allPerRunMandatoryGatesPassed': all_per_run_mandatory,
             'allK6ExitZero': all_k6_exit_zero,
             'allRunsPlannedDuration': all_duration,
             'allWalletsReconciled': all_reconciled,

@@ -68,10 +68,14 @@ evidence for this workload, not proof against every possible concurrency bug.
 
 The per-run summarizer rejects missing required k6 metrics, malformed or empty
 reconciliation data, and wallet coverage other than the profile contract
-(`15` smoke, `250` load, `201` hot-wallet). It writes `run-summary.json` before
-returning nonzero for completeness, mismatch, negative-balance, or client-side
-invariant failures. HTTP 409/500 observations remain performance evidence and
-do not by themselves fail a financial gate.
+(`15` smoke, `250` load, `201` hot-wallet). Raw CSV evidence must contain valid
+`request_outcome` workload samples; their total, success/failure split, and
+invariant count must agree with the native k6 summary counters. Header-only,
+unrelated-only, malformed, or truncated raw files fail completeness. The
+summarizer still writes a detailed `run-summary.json` before returning nonzero
+for completeness, mismatch, negative-balance, or client-side invariant failures.
+HTTP 409/500 observations remain performance evidence and do not by themselves
+fail a financial gate.
 
 The aggregate command requires all three load summaries and the hot-wallet
 summary. It likewise writes its report before returning nonzero when a mandatory
@@ -82,6 +86,13 @@ python benchmark/scripts/aggregate_runs.py `
   --evidence-dir benchmark/evidence/C00-B-redo `
   --output benchmark/evidence/C00-B-redo/aggregate-summary.json
 ```
+
+Compatibility is explicit: historical r1 summaries that contain neither
+`gate` nor `completenessErrors` use the legacy required-field, coverage,
+duration, exit-code, and financial checks. An r2 summary that exposes either
+field must provide a true mandatory gate, passing financial/completeness
+sections, and an empty `completenessErrors` list. Aggregate output propagates
+any explicit per-run failure and exits nonzero.
 
 Harness-only regression tests do not execute k6 or change benchmark evidence:
 

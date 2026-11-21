@@ -50,7 +50,8 @@ class SummarizeRunTests(unittest.TestCase):
                 'avg': 10.0, 'med': 8.0, 'p(95)': 20.0, 'p(99)': 30.0, 'max': 40.0,
             },
             'http_req_failed': {'value': 0.2},
-            'unexpected_failure': {'passes': 2},
+            'request_outcome': {'count': 2},
+            'unexpected_failure': {'passes': 2, 'fails': 0},
             'checks': {'fails': 2},
         }
         metrics.pop(omit_metric, None)
@@ -85,11 +86,13 @@ class SummarizeRunTests(unittest.TestCase):
             writer.writeheader()
             writer.writerow({
                 'metric_name': 'request_outcome', 'metric_value': 1,
-                'extra_tags': 'label=failure&request=transfer&actual=409',
+                'extra_tags': (
+                    'label=failure&request=transfer&expected=201&actual=409'),
             })
             writer.writerow({
                 'metric_name': 'request_outcome', 'metric_value': 1,
-                'extra_tags': 'label=failure&request=transfer&actual=500',
+                'extra_tags': (
+                    'label=failure&request=transfer&expected=201&actual=500'),
             })
             if invariant:
                 writer.writerow({
@@ -120,6 +123,76 @@ class SummarizeRunTests(unittest.TestCase):
         self.assertFalse(report['gate']['completeness']['reconciliationHasData'])
         self.assertIn('reconciliation.tsv contains no wallet data',
                       report['completenessErrors'])
+
+    def test_invalid_reconciliation_row_writes_report_and_fails(self):
+        self.write_reconciliation(15)
+        with (self.run_dir / 'reconciliation.tsv').open(
+                'a', newline='', encoding='utf-8') as file:
+            file.write('invalid\tW-invalid\tnot-a-number\t100\t0\n')
+        self.assertNotEqual(0, self.invoke())
+        report = self.report()
+        self.assertIn(
+            'invalid reconciliation row at line 17', report['completenessErrors'])
+
+    def test_header_only_raw_writes_report_and_fails(self):
+        with (self.run_dir / 'k6_raw.csv').open(
+                'w', newline='', encoding='utf-8') as file:
+            csv.DictWriter(file, fieldnames=(
+                'metric_name', 'metric_value', 'extra_tags')).writeheader()
+        self.assertNotEqual(0, self.invoke())
+        report = self.report()
+        self.assertFalse(report['gate']['completeness']['rawMetricsPresent'])
+        self.assertIn('k6_raw.csv contains no data rows', report['completenessErrors'])
+
+    def test_raw_without_request_outcome_writes_report_and_fails(self):
+        with (self.run_dir / 'k6_raw.csv').open(
+                'w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=(
+                'metric_name', 'metric_value', 'extra_tags'))
+            writer.writeheader()
+            writer.writerow({
+                'metric_name': 'http_reqs', 'metric_value': 1, 'extra_tags': '',
+            })
+        self.assertNotEqual(0, self.invoke())
+        report = self.report()
+        self.assertFalse(report['gate']['completeness']['rawMetricsPresent'])
+        self.assertIn(
+            'k6_raw.csv contains no valid request_outcome samples',
+            report['completenessErrors'])
+
+    def test_raw_summary_counter_mismatch_writes_report_and_fails(self):
+        summary = json.loads(
+            (self.run_dir / 'k6_summary.json').read_text(encoding='utf-8'))
+        summary['metrics']['request_outcome']['count'] = 3
+        (self.run_dir / 'k6_summary.json').write_text(
+            json.dumps(summary), encoding='utf-8')
+        self.assertNotEqual(0, self.invoke())
+        report = self.report()
+        self.assertFalse(report['rawMetrics']['summaryCountersConsistent'])
+        self.assertTrue(any(
+            error.startswith('raw/summary counter mismatch for request_outcome count')
+            for error in report['completenessErrors']))
+
+    def test_truncated_raw_writes_report_and_fails(self):
+        (self.run_dir / 'k6_raw.csv').write_text(
+            'metric_name,metric_value,extra_tags\n'
+            'request_outcome,1,'
+            'label=failure&request=transfer&expected=201&actual=409',
+            encoding='utf-8')
+        self.write_valid_summary()
+        summary = json.loads(
+            (self.run_dir / 'k6_summary.json').read_text(encoding='utf-8'))
+        summary['metrics']['request_outcome']['count'] = 1
+        summary['metrics']['unexpected_failure'] = {'passes': 1, 'fails': 0}
+        summary['metrics']['checks']['fails'] = 1
+        (self.run_dir / 'k6_summary.json').write_text(
+            json.dumps(summary), encoding='utf-8')
+        self.assertNotEqual(0, self.invoke())
+        report = self.report()
+        self.assertFalse(report['gate']['completeness']['rawMetricsPresent'])
+        self.assertIn(
+            'k6_raw.csv does not end with a complete CSV record',
+            report['completenessErrors'])
 
     def test_missing_wallet_coverage_writes_report_and_fails(self):
         self.write_reconciliation(14)
@@ -209,6 +282,62 @@ class AggregateRunTests(unittest.TestCase):
                 self.write_summary(aggregate_runs.HOT_WALLET_RUN, 201, **values)
                 self.assertNotEqual(0, self.invoke())
                 self.assertFalse(self.report()['gate']['mandatoryPassed'])
+
+    def test_real_failed_summarizer_report_propagates_to_aggregate(self):
+        profiles = self.root / 'digitalwallet-stress-test' / 'config' / 'profiles'
+        profiles.mkdir(parents=True)
+        (profiles / 'load.json').write_text(json.dumps({
+            'name': 'load', 'accounts': 200, 'receivingWallets': 50,
+        }), encoding='utf-8')
+
+        run_dir = self.root / aggregate_runs.LOAD_RUNS[0]
+        (run_dir / 'k6_summary.json').write_text(json.dumps({
+            'metrics': {
+                'http_reqs': {'count': 2, 'rate': 1.0},
+                'http_req_duration': {
+                    'avg': 10.0, 'med': 8.0, 'p(95)': 20.0,
+                    'p(99)': 30.0, 'max': 40.0,
+                },
+                'http_req_failed': {'value': 0.0},
+                'request_outcome': {'count': 2},
+                'unexpected_failure': {'passes': 0, 'fails': 2},
+                'checks': {'fails': 0},
+            },
+            'setup_data': {'startTime': 1000, 'testEndTime': 1921000},
+        }), encoding='utf-8')
+        with (run_dir / 'reconciliation.tsv').open(
+                'w', newline='', encoding='utf-8') as file:
+            writer = csv.DictWriter(file, fieldnames=(
+                'wallet_id', 'wallet_number', 'actual_balance',
+                'expected_balance', 'delta'), delimiter='\t')
+            writer.writeheader()
+            for index in range(250):
+                writer.writerow({
+                    'wallet_id': index + 1, 'wallet_number': f'W{index + 1}',
+                    'actual_balance': 100, 'expected_balance': 100, 'delta': 0,
+                })
+        (run_dir / 'k6_raw.csv').write_text(
+            'metric_name,extra_tags\n'
+            'request_outcome,label=success&request=transfer&expected=201&actual=201\n',
+            encoding='utf-8')
+
+        summarize_exit = summarize_run.main([
+            '--run-dir', str(run_dir), '--k6-exit', '0', '--profile', 'load',
+            '--repo-root', str(self.root),
+        ])
+        failed_run = json.loads(
+            (run_dir / 'run-summary.json').read_text(encoding='utf-8'))
+        self.assertNotEqual(0, summarize_exit)
+        self.assertFalse(failed_run['gate']['mandatoryPassed'])
+        self.assertTrue(failed_run['completenessErrors'])
+
+        self.assertNotEqual(0, self.invoke())
+        aggregate = self.report()
+        self.assertFalse(aggregate['gate']['allPerRunMandatoryGatesPassed'])
+        self.assertFalse(aggregate['gate']['mandatoryPassed'])
+        self.assertTrue(any(
+            error.startswith('load-run-01:')
+            for error in aggregate['completenessErrors']))
 
 
 class SourceProvenanceTests(unittest.TestCase):
