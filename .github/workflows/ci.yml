@@ -54,12 +54,6 @@ jobs:
       - name: Test benchmark evidence gates
         working-directory: .
         run: python -m unittest discover -s benchmark/tests -p 'test_*.py'
-      - name: Initialize isolated Phase 1 schema
-        working-directory: .
-        env:
-          MYSQL_CONTAINER: ${{ job.services.mysql.id }}
-        run: |
-          docker exec -i "$MYSQL_CONTAINER" mysql -uroot -pci_root_only digitalwallet_ci < digitalwallet-database/digitalwallet_p1.sql
       - name: Build and run all tests
         run: bash ./gradlew clean build --no-daemon --stacktrace
       - name: Upload test evidence

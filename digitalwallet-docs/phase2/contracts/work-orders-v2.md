@@ -40,6 +40,11 @@ Owner B; A review. Dependency: schema policy C01-A đã merge. CI hiện có là
 
 - [ ] Chọn migration tool theo quyết định A; ownership SQL init và migration rõ ràng.
 - [ ] Test DB trống, DB Phase 1 có dữ liệu, restart và schema sai; không mất số dư/ID/lịch sử.
+- [ ] Trước baseline V1, verifier phải yêu cầu mọi CHECK contract được
+  `ENFORCED=YES`, cả bốn PK còn `AUTO_INCREMENT`, và default/`ON UPDATE` khớp;
+  drift phải fail trước history write, không tự ALTER schema.
+- [ ] Drift integration tests phải đi qua gate thật của baseline tool, dùng
+  fixture Phase 1 độc lập với V1 và chứng minh history/data không đổi khi từ chối.
 - [ ] Cung cấp DB fixture/reset chỉ cho test, transaction rollback/fault infrastructure và khả năng chạy hai app instance trong test sau này.
 - [ ] Tích hợp test mới vào job hiện có; giữ tên `Backend build and test` và upload reports cả khi fail.
 - [ ] Chuyển cấu hình production sang validate có kế hoạch tương thích; không đổi toàn bộ config khi chưa có migration.
