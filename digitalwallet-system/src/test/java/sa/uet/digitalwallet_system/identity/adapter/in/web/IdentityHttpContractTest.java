@@ -33,7 +33,9 @@ class IdentityHttpContractTest {
 
     @Test void registerKeepsV1StatusAndBody() throws Exception {
         UserView user = new UserView(1L, "alice", "Alice", "a@example.com", "ROLE_USER", Instant.parse("2026-01-01T00:00:00Z"));
-        when(registration.register(any())).thenReturn(new RegisteredAccount(user, new WalletView(2, 1, "123456789012", 0, "ACTIVE")));
+        Instant walletTime = Instant.parse("2026-01-01T00:00:00Z");
+        when(registration.register(any())).thenReturn(new RegisteredAccount(user,
+                new WalletView(2, 1, "123456789012", 0, "ACTIVE", 0, walletTime, walletTime)));
         mvc.perform(post("/api/v1/auth/register").contentType(MediaType.APPLICATION_JSON)
                 .content("{\"username\":\"alice\",\"password\":\"secret1\",\"fullName\":\"Alice\",\"email\":\"a@example.com\"}"))
                 .andExpect(status().isCreated()).andExpect(jsonPath("$.status").value(201))

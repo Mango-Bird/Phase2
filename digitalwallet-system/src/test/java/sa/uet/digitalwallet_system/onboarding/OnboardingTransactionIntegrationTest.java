@@ -47,6 +47,9 @@ class OnboardingTransactionIntegrationTest {
         when(walletNumbers.next()).thenReturn("123456789012");
         RegisteredAccount account = onboarding.register(input("alice", "a@example.com"));
         assertThat(account.wallet().userId()).isEqualTo(account.user().id());
+        assertThat(account.wallet().version()).isZero();
+        assertThat(account.wallet().createdAt()).isNotNull();
+        assertThat(account.wallet().updatedAt()).isNotNull();
         assertThat(count("users")).isEqualTo(1);
         assertThat(count("wallets")).isEqualTo(1);
     }

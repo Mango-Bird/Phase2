@@ -23,6 +23,8 @@ public class LegacyWalletCreationBridge implements WalletCreationApi {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         Wallet saved = saveWalletPort.save(Wallet.builder().userId(userId).walletNumber(walletNumberGenerator.next())
                 .balance(0L).status("ACTIVE").version(0L).createdAt(now).updatedAt(now).build());
-        return new WalletView(saved.getId(), saved.getUserId(), saved.getWalletNumber(), saved.getBalance(), saved.getStatus());
+        return new WalletView(saved.getId(), saved.getUserId(), saved.getWalletNumber(), saved.getBalance(),
+                saved.getStatus(), saved.getVersion(), saved.getCreatedAt().toInstant(ZoneOffset.UTC),
+                saved.getUpdatedAt().toInstant(ZoneOffset.UTC));
     }
 }
