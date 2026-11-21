@@ -36,6 +36,9 @@ export const options = {
   // Nếu muốn đo băng thông thì bỏ hai dòng discardResponseBodies.
   discardResponseBodies: false,
   noConnectionReuse: false,
+  // C00/C11 require p99 in the exported summary. k6 only exports the
+  // configured trend statistics, so keep this list explicit and stable.
+  summaryTrendStats: ['avg', 'min', 'med', 'max', 'p(90)', 'p(95)', 'p(99)'],
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

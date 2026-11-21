@@ -116,6 +116,81 @@ def sample_mysql():
             yield ('mysql', name, int(parts[1]), '', None)
 
 
+def _parse_size(value):
+    """Convert Docker's human-readable sizes (MiB, GB, kB...) to bytes."""
+    value = value.strip()
+    units = {
+        'B': 1, 'kB': 1000, 'MB': 1000 ** 2, 'GB': 1000 ** 3,
+        'KiB': 1024, 'MiB': 1024 ** 2, 'GiB': 1024 ** 3,
+    }
+    for unit in sorted(units, key=len, reverse=True):
+        if value.endswith(unit):
+            try:
+                return float(value[:-len(unit)].strip()) * units[unit]
+            except ValueError:
+                return None
+    return None
+
+
+def sample_docker(containers):
+    if not containers:
+        return
+    try:
+        proc = subprocess.run(
+            ['docker', 'stats', '--no-stream', '--format', '{{json .}}', *containers],
+            capture_output=True, text=True, timeout=10,
+        )
+    except Exception:
+        return
+    if proc.returncode != 0:
+        return
+    for line in proc.stdout.splitlines():
+        try:
+            item = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        name = item.get('Name', 'unknown')
+        cpu = str(item.get('CPUPerc', '')).rstrip('%')
+        try:
+            yield ('docker', 'cpu_percent', float(cpu), '%', {'container': name})
+        except ValueError:
+            pass
+        mem_used = str(item.get('MemUsage', '')).split('/')[0].strip()
+        mem_bytes = _parse_size(mem_used)
+        if mem_bytes is not None:
+            yield ('docker', 'memory_used_bytes', mem_bytes, 'B', {'container': name})
+        try:
+            yield ('docker', 'pids', int(item.get('PIDs', 0)), '', {'container': name})
+        except (TypeError, ValueError):
+            pass
+
+
+def sample_mysql_docker(container):
+    if not container:
+        return
+    names = ('Threads_connected', 'Threads_running', 'Queries',
+             'Innodb_row_lock_waits', 'Innodb_row_lock_time')
+    for name in names:
+        sql = f"SHOW GLOBAL STATUS LIKE '{name}'"
+        try:
+            proc = subprocess.run(
+                ['docker', 'exec', container, 'sh', '-c',
+                 'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -B -e "$1"',
+                 'sampler', sql],
+                capture_output=True, text=True, timeout=10,
+            )
+        except Exception:
+            continue
+        if proc.returncode != 0:
+            continue
+        parts = proc.stdout.strip().split('\t')
+        if len(parts) >= 2:
+            try:
+                yield ('mysql', name, int(parts[1]), '', {'container': container})
+            except ValueError:
+                pass
+
+
 # ── main ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -125,6 +200,8 @@ def main():
                     help='stop after N seconds; omit to run until killed')
     ap.add_argument('--out', required=True)
     ap.add_argument('--actuator-url', default='http://localhost:8080/actuator')
+    ap.add_argument('--docker-containers', nargs='*', default=[])
+    ap.add_argument('--mysql-container', default=None)
     args = ap.parse_args()
 
     os.makedirs(os.path.dirname(os.path.abspath(args.out)) or '.', exist_ok=True)
@@ -142,7 +219,14 @@ def main():
                 break
 
             ts = now_iso()
-            for src in (sample_system, lambda: sample_jvm(args.actuator_url), sample_mysql):
+            sources = [sample_system, lambda: sample_jvm(args.actuator_url)]
+            if args.mysql_container:
+                sources.append(lambda: sample_mysql_docker(args.mysql_container))
+            else:
+                sources.append(sample_mysql)
+            if args.docker_containers:
+                sources.append(lambda: sample_docker(args.docker_containers))
+            for src in sources:
                 try:
                     for cat, met, val, unit, lab in src():
                         write_row(w, ts, cat, met, val, unit, lab)

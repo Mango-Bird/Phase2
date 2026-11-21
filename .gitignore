@@ -16,3 +16,16 @@ PROGRESS.md
 # Docker secrets
 .env
 
+# C00 raw streams are retained locally or uploaded as PR/CI artifacts.
+# Commit summaries, checksums, sampler data and reconciliation evidence instead.
+benchmark/evidence/**/k6_raw.csv
+
+# Superseded local attempts kept on disk for comparison; C00-B-redo is canonical.
+benchmark/evidence/C00-B/
+benchmark/evidence/load-baseline-summary.json
+benchmark/evidence/smoke-summary.json
+
+# Local Python bytecode.
+__pycache__/
+*.pyc
+

@@ -1,0 +1,151 @@
+{
+  "generatedAt": "2026-11-21T00:11:46.515184+00:00",
+  "k6ExitCode": 0,
+  "plannedDurationSec": 180.0,
+  "executor": "ramping-vus",
+  "droppedIterations": null,
+  "droppedIterationsNote": "N/A: ramping-vus is a closed-model executor and does not emit dropped_iterations.",
+  "requests": 929,
+  "achievedRps": 5.007813049307255,
+  "latencyMs": {
+    "avg": 14.006789656620029,
+    "p50": 9.267514,
+    "p95": 62.3580752,
+    "p99": 88.59747092000002,
+    "max": 286.800223
+  },
+  "httpFailedRate": 0.04090419806243272,
+  "unexpectedFailures": 0,
+  "checksFailed": 0,
+  "failuresByRequestAndActual": [],
+  "invariantViolations": 0,
+  "walletReconciliation": {
+    "walletCount": 15,
+    "mismatchCount": 0,
+    "actualTotal": 7603767,
+    "expectedTotal": 7603767,
+    "negativeBalanceCount": 0
+  },
+  "rawMetrics": {
+    "file": "k6_raw.csv",
+    "bytes": 1569439,
+    "sha256": "b74b8d208c5fd4dd86ff7e6a3e945278593128f07feaa8e48c54504fc63d9086",
+    "retention": "Local evidence; upload as PR/CI artifact instead of committing the oversized CSV."
+  },
+  "resources": {
+    "cpu.percent.host": {
+      "min": 23.4,
+      "avg": 30.279999999999998,
+      "max": 100.0,
+      "samples": 45
+    },
+    "ram.used_bytes.host": {
+      "min": 11483082752.0,
+      "avg": 11631380343.466667,
+      "max": 11947139072.0,
+      "samples": 45
+    },
+    "ram.available_bytes.host": {
+      "min": 631439360.0,
+      "avg": 947198088.5333333,
+      "max": 1095495680.0,
+      "samples": 45
+    },
+    "ram.percent.host": {
+      "min": 91.3,
+      "avg": 92.46444444444444,
+      "max": 95.0,
+      "samples": 45
+    },
+    "disk.read_bytes.host": {
+      "min": 64085314560.0,
+      "avg": 64740964022.04444,
+      "max": 64979383296.0,
+      "samples": 45
+    },
+    "disk.write_bytes.host": {
+      "min": 48792241152.0,
+      "avg": 49946278684.44444,
+      "max": 51128806912.0,
+      "samples": 45
+    },
+    "net.sent_bytes.host": {
+      "min": 37513022.0,
+      "avg": 37803895.844444446,
+      "max": 37936171.0,
+      "samples": 45
+    },
+    "net.recv_bytes.host": {
+      "min": 1177245474.0,
+      "avg": 1177706337.4666667,
+      "max": 1178003673.0,
+      "samples": 45
+    },
+    "mysql.Threads_connected.dw-mysql": {
+      "min": 11.0,
+      "avg": 11.0,
+      "max": 11.0,
+      "samples": 45
+    },
+    "mysql.Threads_running.dw-mysql": {
+      "min": 2.0,
+      "avg": 2.088888888888889,
+      "max": 4.0,
+      "samples": 45
+    },
+    "mysql.Queries.dw-mysql": {
+      "min": 337937.0,
+      "avg": 343564.6,
+      "max": 349339.0,
+      "samples": 45
+    },
+    "mysql.Innodb_row_lock_waits.dw-mysql": {
+      "min": 41.0,
+      "avg": 41.0,
+      "max": 41.0,
+      "samples": 45
+    },
+    "mysql.Innodb_row_lock_time.dw-mysql": {
+      "min": 4700.0,
+      "avg": 4700.0,
+      "max": 4700.0,
+      "samples": 45
+    },
+    "docker.cpu_percent.dw-app": {
+      "min": 0.11,
+      "avg": 2.6326666666666667,
+      "max": 8.22,
+      "samples": 45
+    },
+    "docker.memory_used_bytes.dw-app": {
+      "min": 521142272.0,
+      "avg": 521622286.79111105,
+      "max": 522190848.0,
+      "samples": 45
+    },
+    "docker.pids.dw-app": {
+      "min": 47.0,
+      "avg": 47.0,
+      "max": 47.0,
+      "samples": 45
+    },
+    "docker.cpu_percent.dw-mysql": {
+      "min": 0.57,
+      "avg": 2.3697777777777778,
+      "max": 5.52,
+      "samples": 45
+    },
+    "docker.memory_used_bytes.dw-mysql": {
+      "min": 534668902.4,
+      "avg": 535158237.8666667,
+      "max": 535612620.8,
+      "samples": 45
+    },
+    "docker.pids.dw-mysql": {
+      "min": 48.0,
+      "avg": 48.0,
+      "max": 48.0,
+      "samples": 45
+    }
+  }
+}

@@ -432,7 +432,7 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 | Hạng mục | Owner | Trạng thái có bằng chứng | Bước tiếp theo / người nghiệm thu |
 |---|---|---|---|
 | C00-TEST | A | VERIFIED: baseline local 111/13 lỗi; sau sửa GitHub 111 PASS | Giữ evidence, A xác nhận phạm vi test; không suy ra benchmark hoàn tất |
-| C00-B | B | TODO | Benchmark baseline hiện tại, A nghiệm thu |
+| C00-B | B | READY FOR A REVIEW | Ba run chuẩn + hot-wallet + reconciliation tại `benchmark/baseline.md`; chờ GitHub CI và A nghiệm thu |
 | C01-A | A | DECIDED / READY FOR A: 4 ADR và public contracts v1 đã soạn | A review/merge để ACCEPTED; xem contract C01-A-r1 |
 | C02-CI | A | MERGED + VERIFIED | CI/rulesets hoạt động; bảo trì theo mỗi SHA |
 | C02-B | B | TODO | Migration và DB integration harness, A review |

@@ -51,6 +51,9 @@ jobs:
           java-version: '21'
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
+      - name: Test benchmark evidence gates
+        working-directory: .
+        run: python -m unittest discover -s benchmark/tests -p 'test_*.py'
       - name: Build and run all tests
         run: bash ./gradlew clean build --no-daemon --stacktrace
       - name: Upload test evidence

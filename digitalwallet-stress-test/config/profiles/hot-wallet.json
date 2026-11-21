@@ -1,0 +1,12 @@
+{
+  "name": "hot-wallet",
+  "_description": "C00 hot-wallet baseline: 200 accounts, 100 target RPS, one shared receiving wallet, 2 min activation + 30 min hold.",
+
+  "accounts": 200,
+  "targetRps": 100,
+  "activationDurationSec": 120,
+  "durationSec": 1920,
+
+  "receivingWallets": 1,
+  "tokenTimeout": { "muSec": 300 }
+}
