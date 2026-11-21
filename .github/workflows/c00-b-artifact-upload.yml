@@ -1,0 +1,204 @@
+name: C00-B raw artifact upload
+
+on:
+  push:
+    branches:
+      - feat/c00-b-performance-baseline
+    paths:
+      - .github/workflows/c00-b-artifact-upload.yml
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: PR that receives the artifact links
+        required: true
+        default: '6'
+        type: string
+      source_commit:
+        description: C00-B evidence commit represented by the raw files
+        required: true
+        default: '9352a302b5a2af3d5ac04b365dcb53779763268b'
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: c00-b-raw-artifact-upload
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Verify and upload C00-B raw evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    env:
+      EXPECTED_PR: '6'
+      EXPECTED_COMMIT: '9352a302b5a2af3d5ac04b365dcb53779763268b'
+      REQUESTED_RETENTION_DAYS: '30'
+    steps:
+      - name: Validate manual invocation
+        shell: pwsh
+        env:
+          REQUESTED_PR: ${{ github.event_name == 'workflow_dispatch' && inputs.pr_number || '6' }}
+          REQUESTED_COMMIT: ${{ github.event_name == 'workflow_dispatch' && inputs.source_commit || '9352a302b5a2af3d5ac04b365dcb53779763268b' }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:REQUESTED_PR -ne $env:EXPECTED_PR) {
+            throw "This workflow is restricted to PR #$($env:EXPECTED_PR)."
+          }
+          if ($env:REQUESTED_COMMIT -ne $env:EXPECTED_COMMIT) {
+            throw "This workflow is restricted to commit $($env:EXPECTED_COMMIT)."
+          }
+
+      - name: Download private staging objects and verify raw evidence
+        shell: pwsh
+        env:
+          C00_B_TRANSFER_BASE_URL: ${{ secrets.C00_B_TRANSFER_BASE_URL }}
+          C00_B_TRANSFER_TOKEN: ${{ secrets.C00_B_TRANSFER_TOKEN }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Set-StrictMode -Version Latest
+
+          $root = Join-Path $env:RUNNER_TEMP 'c00-b-raw'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+
+          if ([string]::IsNullOrWhiteSpace($env:C00_B_TRANSFER_BASE_URL)) {
+            throw 'Missing C00_B_TRANSFER_BASE_URL secret.'
+          }
+          if ([string]::IsNullOrWhiteSpace($env:C00_B_TRANSFER_TOKEN)) {
+            throw 'Missing C00_B_TRANSFER_TOKEN secret.'
+          }
+
+          $baseUrl = $env:C00_B_TRANSFER_BASE_URL.TrimEnd('/')
+          if (-not $baseUrl.StartsWith('https://', [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw 'C00_B_TRANSFER_BASE_URL must use HTTPS.'
+          }
+
+          $items = @(
+            @{
+              Run = 'load-run-01'
+              Bytes = [int64]304321986
+              Sha256 = 'f9191aa660f5aa61f3ef7061d6854d60fc4088461d7a0be9fe88d1f27a90ff09'
+            },
+            @{
+              Run = 'load-run-02'
+              Bytes = [int64]297686915
+              Sha256 = 'ad1b9d310798c73a9e6df08f9c308241056d0a126c80d86ce6edcb9795abbb02'
+            },
+            @{
+              Run = 'load-run-03'
+              Bytes = [int64]303663888
+              Sha256 = 'bba09c3b0af9adab610d877536a7b34f59317648c04439e2fa80e927d1118ac2'
+            },
+            @{
+              Run = 'hot-wallet-run-01'
+              Bytes = [int64]305828098
+              Sha256 = '84a4450bec33151d8a01626fdfd6a1e645b8e3b5122e6dd5c6f6e91a24e3c87c'
+            }
+          )
+
+          foreach ($item in $items) {
+            $directory = Join-Path $root $item.Run
+            $csv = Join-Path $directory 'k6_raw.csv'
+            New-Item -ItemType Directory -Path $directory -Force | Out-Null
+
+            & /usr/bin/curl `
+              --fail `
+              --location `
+              --silent `
+              --show-error `
+              --proto '=https' `
+              --tlsv1.2 `
+              --retry 5 `
+              --retry-all-errors `
+              --connect-timeout 30 `
+              --max-time 7200 `
+              --header "Authorization: Bearer $($env:C00_B_TRANSFER_TOKEN)" `
+              --output $csv `
+              "$baseUrl/$($item.Run)"
+            if ($LASTEXITCODE -ne 0) {
+              throw "Private staging download failed for $($item.Run)."
+            }
+
+            $actualBytes = (Get-Item -LiteralPath $csv).Length
+            $actualSha256 = (Get-FileHash -LiteralPath $csv -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($actualBytes -ne $item.Bytes) {
+              throw "Byte-size mismatch for $($item.Run): expected $($item.Bytes), got $actualBytes."
+            }
+            if ($actualSha256 -ne $item.Sha256) {
+              throw "SHA-256 mismatch for $($item.Run): expected $($item.Sha256), got $actualSha256."
+            }
+
+            [ordered]@{
+              ticket = 'C00-B'
+              pullRequest = [int]$env:EXPECTED_PR
+              sourceCommit = $env:EXPECTED_COMMIT
+              run = $item.Run
+              file = 'k6_raw.csv'
+              bytes = $actualBytes
+              sha256 = $actualSha256
+              requestedRetentionDays = [int]$env:REQUESTED_RETENTION_DAYS
+            } | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $directory 'manifest.json') -Encoding utf8
+          }
+
+      - name: Upload load run 01
+        id: upload_load_01
+        uses: actions/upload-artifact@v4
+        with:
+          name: c00-b-load-run-01-raw-9352a30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/c00-b-raw/load-run-01/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload load run 02
+        id: upload_load_02
+        uses: actions/upload-artifact@v4
+        with:
+          name: c00-b-load-run-02-raw-9352a30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/c00-b-raw/load-run-02/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload load run 03
+        id: upload_load_03
+        uses: actions/upload-artifact@v4
+        with:
+          name: c00-b-load-run-03-raw-9352a30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/c00-b-raw/load-run-03/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Upload hot-wallet run 01
+        id: upload_hot_wallet_01
+        uses: actions/upload-artifact@v4
+        with:
+          name: c00-b-hot-wallet-run-01-raw-9352a30-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/c00-b-raw/hot-wallet-run-01/
+          if-no-files-found: error
+          retention-days: 30
+          compression-level: 6
+
+      - name: Write handoff summary
+        shell: pwsh
+        env:
+          LOAD_01_URL: ${{ steps.upload_load_01.outputs.artifact-url }}
+          LOAD_02_URL: ${{ steps.upload_load_02.outputs.artifact-url }}
+          LOAD_03_URL: ${{ steps.upload_load_03.outputs.artifact-url }}
+          HOT_WALLET_01_URL: ${{ steps.upload_hot_wallet_01.outputs.artifact-url }}
+        run: |
+          @"
+          ## C00-B raw artifact handoff
+
+          - PR: #$($env:EXPECTED_PR)
+          - Evidence commit: ``$($env:EXPECTED_COMMIT)``
+          - Requested retention: $($env:REQUESTED_RETENTION_DAYS) days
+          - [load-run-01]($($env:LOAD_01_URL))
+          - [load-run-02]($($env:LOAD_02_URL))
+          - [load-run-03]($($env:LOAD_03_URL))
+          - [hot-wallet-run-01]($($env:HOT_WALLET_01_URL))
+
+          Copy these links, the raw SHA-256 values from each ``manifest.json``, and the retention into PR #$($env:EXPECTED_PR) for A's review.
+          "@ | Add-Content -LiteralPath $env:GITHUB_STEP_SUMMARY -Encoding utf8
