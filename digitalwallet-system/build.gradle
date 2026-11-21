@@ -17,11 +17,16 @@ repositories {
 	mavenCentral()
 }
 
+// 11.15.0 is the first 11.x release verified beyond MySQL 8.4 (through 9.4).
+ext['flyway.version'] = '11.15.0'
+
 dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-webmvc'
 	implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	runtimeOnly 'org.flywaydb:flyway-mysql'
 
 	// JWT (JJWT)
 	implementation 'io.jsonwebtoken:jjwt-api:0.12.6'
@@ -44,7 +49,10 @@ dependencies {
 	runtimeOnly 'com.mysql:mysql-connector-j'
 
 	testImplementation 'org.springframework.boot:spring-boot-starter-webmvc-test'
+	testImplementation 'org.springframework.boot:spring-boot-testcontainers'
 	testImplementation 'org.springframework.security:spring-security-test'
+	testImplementation 'org.testcontainers:testcontainers-junit-jupiter'
+	testImplementation 'org.testcontainers:testcontainers-mysql'
 	testCompileOnly 'org.projectlombok:lombok'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
 	testAnnotationProcessor 'org.projectlombok:lombok'
@@ -52,4 +60,11 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.register('baselinePhase1', JavaExec) {
+	group = 'database migration'
+	description = 'Verify a backed-up Phase 1 schema and explicitly baseline it at V1.'
+	classpath = sourceSets.main.runtimeClasspath
+	mainClass = 'sa.uet.digitalwallet_system.migration.Phase1BaselineTool'
 }
