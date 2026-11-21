@@ -18,18 +18,17 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import sa.uet.digitalwallet_system.adapter.in.security.JwtAuthenticationFilter;
-import sa.uet.digitalwallet_system.adapter.in.security.SecurityConfig;
+import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
+import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
 import sa.uet.digitalwallet_system.adapter.in.web.controller.LinkedBankController;
 import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
-import sa.uet.digitalwallet_system.adapter.out.security.JwtTokenGenerator;
+import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
 import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
 import sa.uet.digitalwallet_system.application.port.out.LoadLinkedBankPort;
 import sa.uet.digitalwallet_system.application.port.out.SaveLinkedBankPort;
 import sa.uet.digitalwallet_system.application.service.LinkedBankService;
 import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
 import sa.uet.digitalwallet_system.domain.model.LinkedBankAccount;
-import sa.uet.digitalwallet_system.domain.model.User;
 import sa.uet.digitalwallet_system.domain.model.Wallet;
 
 import java.nio.charset.StandardCharsets;
@@ -56,7 +55,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=link-bank-endpoint-test-only-signing-key-2026",
         "app.jwt.expiration-ms=86400000"
 })
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenGenerator.class,
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
         LinkedBankService.class, GlobalExceptionHandler.class})
 class LinkBankEndpointTest {
 
@@ -71,7 +70,7 @@ class LinkBankEndpointTest {
     private WebApplicationContext context;
 
     @Autowired
-    private JwtTokenGenerator tokenGenerator;
+    private JwtTokenService tokenGenerator;
 
     @MockitoBean
     private GetWalletUseCase getWalletUseCase;
@@ -90,8 +89,7 @@ class LinkBankEndpointTest {
         // Register JWT through the real SecurityFilterChain only. Registering the
         // same OncePerRequestFilter as an outer MockMvc filter can clear its context.
         mockMvc = MockMvcBuilders.webAppContextSetup(context).apply(springSecurity()).build();
-        validToken = tokenGenerator.generateToken(User.builder()
-                .id(USER_ID).username("bank-link-user").role("ROLE_USER").build());
+        validToken = tokenGenerator.issue(USER_ID, "bank-link-user", "ROLE_USER").value();
     }
 
     @Test

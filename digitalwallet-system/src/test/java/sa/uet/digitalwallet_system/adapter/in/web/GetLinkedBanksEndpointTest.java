@@ -13,20 +13,19 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import sa.uet.digitalwallet_system.adapter.in.security.JwtAuthenticationFilter;
-import sa.uet.digitalwallet_system.adapter.in.security.SecurityConfig;
+import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
+import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
 import sa.uet.digitalwallet_system.adapter.in.web.controller.LinkedBankController;
 import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.adapter.out.persistence.LinkedBankPersistenceAdapter;
 import sa.uet.digitalwallet_system.adapter.out.persistence.entity.LinkedBankAccountJpaEntity;
 import sa.uet.digitalwallet_system.adapter.out.persistence.mapper.LinkedBankAccountMapper;
 import sa.uet.digitalwallet_system.adapter.out.persistence.repository.LinkedBankAccountRepository;
-import sa.uet.digitalwallet_system.adapter.out.security.JwtTokenGenerator;
+import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
 import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
 import sa.uet.digitalwallet_system.application.service.LinkedBankService;
 import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
 import sa.uet.digitalwallet_system.domain.model.LinkedBankAccount;
-import sa.uet.digitalwallet_system.domain.model.User;
 import sa.uet.digitalwallet_system.domain.model.Wallet;
 
 import java.nio.charset.StandardCharsets;
@@ -48,7 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=get-linked-banks-endpoint-test-signing-key-2026",
         "app.jwt.expiration-ms=86400000"
 })
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenGenerator.class,
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
         LinkedBankService.class, LinkedBankPersistenceAdapter.class, GlobalExceptionHandler.class})
 class GetLinkedBanksEndpointTest {
 
@@ -61,7 +60,7 @@ class GetLinkedBanksEndpointTest {
     private WebApplicationContext context;
 
     @Autowired
-    private JwtTokenGenerator tokenGenerator;
+    private JwtTokenService tokenGenerator;
 
     @MockitoBean
     private GetWalletUseCase getWalletUseCase;
@@ -199,8 +198,7 @@ class GetLinkedBanksEndpointTest {
     }
 
     private String tokenFor(long userId) {
-        return tokenGenerator.generateToken(User.builder()
-                .id(userId).username("bank-user-" + userId).role("ROLE_USER").build());
+        return tokenGenerator.issue(userId, "bank-user-" + userId, "ROLE_USER").value();
     }
 
     private void stubWallet(long userId, long walletId) {

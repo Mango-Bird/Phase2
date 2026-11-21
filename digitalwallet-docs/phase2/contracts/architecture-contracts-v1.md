@@ -40,6 +40,8 @@ Database FK được phép trỏ sang bảng module khác; không đồng nghĩa
 - Chỉ Payment được import WalletPostingApi và BankEligibilityApi; chỉ Onboarding được import IdentityRegistrationApi/WalletCreationApi. Banking và Reconciliation chỉ dùng read APIs được cho phép, không gọi posting.
 - C03-B ghi ngoại lệ chuyển tiếp theo package cụ thể để app còn chạy; C03-A phải gỡ ngoại lệ khi Payment/Wallet/Banking đã di chuyển. Không release khi còn allow-all cho modules đích.
 
+Ngoại lệ chuyển tiếp C03-B được đóng cụ thể tại `wallet.adapter.legacy.LegacyWalletCreationBridge`: chỉ class này được phụ thuộc `application.port.out.SaveWalletPort`, `domain.model.Wallet` và nested builder do Lombok sinh. Architecture test không có wildcard exception và từ chối mọi named-module class khác dùng legacy root. A phải thay bridge bằng Wallet implementation chuẩn và xóa ngoại lệ này trong C03-A.
+
 Trình tự C03: B publish các API/interface và DTO đã chốt trước, giữ đường register legacy qua một bridge được liệt kê cụ thể nếu backing Wallet chưa di chuyển. A hoàn thiện Wallet implementation và nối Onboarding nguyên tử ở C03-A rồi gỡ bridge/ngoại lệ. C03-B không được tự tách create-user và create-wallet thành hai transaction để vượt dependency.
 
 ## 3. Java public interfaces — chữ ký đích

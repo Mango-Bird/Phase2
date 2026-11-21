@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import sa.uet.digitalwallet_system.adapter.in.web.dto.response.ErrorResponse;
 import sa.uet.digitalwallet_system.domain.exception.*;
+import sa.uet.digitalwallet_system.identity.api.error.DuplicateUserException;
+import sa.uet.digitalwallet_system.identity.api.error.InvalidCredentialsException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
