@@ -14,6 +14,8 @@ Branch: `feat/c02-b-database-migration`
 | Phase 1 data | Fixture preserves explicit IDs, wallet balance, version, transaction history, and millisecond timestamps across explicit V1 baseline. |
 | Restart | A second Flyway process executes zero migrations; one successful V1 history row remains. |
 | Wrong schema | Metadata verifier reports the drift and Flyway refuses a non-empty schema because automatic baseline is false. |
+| CHECK enforcement | A named/clause-matching CHECK with `ENFORCED=NO` is rejected before baseline history is written. |
+| Column write contract | All four PKs require `AUTO_INCREMENT`; defaults and `ON UPDATE` expressions are compared before baseline. |
 | Schema ownership | Hibernate uses `validate`; Docker and CI no longer run the destructive Phase 1 dump. |
 | Version ownership | V1 exists; V2-V6 remain uncreated and reserved for their contract owners. |
 | MySQL compatibility | Flyway is pinned to 11.15.0, the first 11.x release verified through MySQL 9.4, avoiding the MySQL 8.4 warning emitted by Boot's former 11.14.1 default. |
@@ -50,7 +52,27 @@ Command:
 gradlew.bat test --tests *DatabaseMigrationIntegrationTest --no-daemon
 ```
 
-Result: PASS, 4 tests, MySQL 8.4 through Testcontainers.
+Result: PASS, 7 tests, MySQL 8.4 through Testcontainers.
+
+The legacy path uses `db/legacy/phase1-schema.sql`, an independent test fixture
+derived from the Phase 1 dump rather than loading the V1 migration under test.
+The valid fixture is baselined through the same `Phase1BaselineTool` entry point
+used by the CLI. Regression cases apply these real MySQL 8.4 drifts:
+
+```sql
+ALTER TABLE wallets
+ALTER CHECK chk_wallets_balance NOT ENFORCED;
+
+ALTER TABLE transactions
+MODIFY COLUMN id BIGINT NOT NULL;
+```
+
+Both are rejected before Flyway creates a history row. A third regression changes
+`users.role`'s exact default and removes `wallets.updated_at`'s `ON UPDATE`
+expression. For all
+three failures, the integration harness asserts zero history rows and an
+unchanged business-data snapshot. The valid schema still records exactly one V1
+BASELINE row and a following migrate executes zero migrations.
 
 Full local equivalent of the CI backend command:
 
@@ -58,7 +80,7 @@ Full local equivalent of the CI backend command:
 gradlew.bat clean build --no-daemon --stacktrace
 ```
 
-Result: PASS, 115 tests, 0 failures, 0 errors, 0 skipped. The application
+Result: PASS, 118 tests, 0 failures, 0 errors, 0 skipped. The application
 context used a separate empty MySQL 8.4 test database, so this run also exercised
 Flyway V1 followed by Hibernate validation. The temporary database container was
 removed after the build.

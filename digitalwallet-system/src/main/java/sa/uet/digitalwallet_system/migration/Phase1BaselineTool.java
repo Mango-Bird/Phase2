@@ -20,7 +20,14 @@ public final class Phase1BaselineTool {
         String username = required("SPRING_DATASOURCE_USERNAME");
         String password = required("SPRING_DATASOURCE_PASSWORD");
         String legacyTimezone = required("C02_B_LEGACY_TIMEZONE");
-        if (!"true".equalsIgnoreCase(required("C02_B_BACKUP_CONFIRMED"))) {
+        boolean backupConfirmed = "true".equalsIgnoreCase(required("C02_B_BACKUP_CONFIRMED"));
+        baselineVerifiedPhase1(
+                url, username, password, legacyTimezone, backupConfirmed);
+    }
+
+    static void baselineVerifiedPhase1(String url, String username, String password,
+                                       String legacyTimezone, boolean backupConfirmed) throws Exception {
+        if (!backupConfirmed) {
             throw new IllegalStateException("C02_B_BACKUP_CONFIRMED must be true after a restorable backup");
         }
 

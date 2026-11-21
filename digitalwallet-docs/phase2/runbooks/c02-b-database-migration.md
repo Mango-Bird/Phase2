@@ -38,10 +38,14 @@ these steps are complete:
    On Linux/macOS use the same environment names with `./gradlew`.
 
 The command fails before writing when a table, column, required index, or named
-constraint differs from the Phase 1 contract. It also fails if the schema history
-already exists or backup/timezone attestations are absent. On success, its only
-database write is Flyway's V1 baseline record. It compares table counts, maximum
-IDs, total wallet balance, and total transaction amount before and after.
+constraint differs from the Phase 1 contract. Column equivalence includes all
+four primary-key `AUTO_INCREMENT` attributes plus write-affecting defaults and
+`ON UPDATE` expressions. Every required CHECK must match its named clause and
+report `ENFORCED=YES`; a present but `NOT ENFORCED` constraint is rejected. The
+tool never repairs drift. It also fails if schema history already exists or
+backup/timezone attestations are absent. On success, its only database write is
+Flyway's V1 baseline record. It compares table counts, maximum IDs, total wallet
+balance, and total transaction amount before and after.
 
 After the baseline succeeds, start the application normally. Do not enable
 automatic baselining as a shortcut.
@@ -67,9 +71,14 @@ Run the migration harness with Docker available:
 .\gradlew.bat test --tests '*DatabaseMigrationIntegrationTest' --no-daemon
 ```
 
-It covers an empty database, populated Phase 1 data, process restart, and an
-incompatible non-empty schema. Test-only databases are isolated and removed by
-the harness. No production reset or Flyway `clean` is enabled.
+It covers an empty database, populated Phase 1 data, process restart, an
+incompatible non-empty schema, a required CHECK changed to `NOT ENFORCED`, a
+primary key with `AUTO_INCREMENT` removed, and default/`ON UPDATE` drift. Legacy
+tests load an independent Phase 1 test fixture rather than the production V1
+migration. Drift cases invoke the same verification/baseline entry point as the
+CLI and assert no Flyway history row and no business-data change. Test-only
+databases are isolated and removed by the harness. No production reset or
+Flyway `clean` is enabled.
 
 There are no down migrations. If a deployment must be reversed after a failed
 schema change, stop writers and restore the verified backup. Never use `DROP`,

@@ -9,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 public final class Phase1SchemaVerifier {
@@ -88,9 +89,8 @@ public final class Phase1SchemaVerifier {
                 Column actual = actualColumns.get(expected.name());
                 if (actual == null) {
                     errors.add("missing column: " + table + "." + expected.name());
-                } else if (!expected.matches(actual)) {
-                    errors.add("column mismatch: " + table + "." + expected.name()
-                            + " expected " + expected + " but was " + actual);
+                } else {
+                    verifyColumn(table, expected, actual, errors);
                 }
             }
             Set<String> unexpected = new LinkedHashSet<>(actualColumns.keySet());
@@ -153,7 +153,7 @@ public final class Phase1SchemaVerifier {
                          ELSE NUMERIC_PRECISION
                        END AS contract_size,
                        COALESCE(DATETIME_PRECISION, NUMERIC_SCALE, 0) AS contract_scale,
-                       IS_NULLABLE
+                       IS_NULLABLE, COLUMN_DEFAULT, EXTRA
                 FROM information_schema.COLUMNS
                 WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?
                 ORDER BY ORDINAL_POSITION
@@ -166,7 +166,11 @@ public final class Phase1SchemaVerifier {
                     columns.put(result.getString("COLUMN_NAME"), new Column(
                             result.getString("COLUMN_NAME"), result.getString("DATA_TYPE").toLowerCase(),
                             result.getInt("contract_size"), result.getInt("contract_scale"),
-                            "YES".equals(result.getString("IS_NULLABLE"))));
+                            "YES".equals(result.getString("IS_NULLABLE")),
+                            normalizedDefault(result.getString("COLUMN_DEFAULT")),
+                            normalizedExtra(result.getString("EXTRA")).contains("auto_increment"),
+                            onUpdateExpression(result.getString("EXTRA")),
+                            normalizedExtra(result.getString("EXTRA"))));
                 }
             }
         }
@@ -255,28 +259,87 @@ public final class Phase1SchemaVerifier {
     private static void verifyChecks(Connection connection, String schema, List<String> errors)
             throws SQLException {
         String sql = """
-                SELECT tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE
+                SELECT tc.CONSTRAINT_NAME, cc.CHECK_CLAUSE, tc.ENFORCED
                 FROM information_schema.TABLE_CONSTRAINTS tc
                 JOIN information_schema.CHECK_CONSTRAINTS cc
                   ON cc.CONSTRAINT_SCHEMA = tc.CONSTRAINT_SCHEMA
                  AND cc.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
                 WHERE tc.TABLE_SCHEMA = ? AND tc.CONSTRAINT_TYPE = 'CHECK'
                 """;
-        Map<String, String> actual = new LinkedHashMap<>();
+        Map<String, CheckConstraint> actual = new LinkedHashMap<>();
         try (var statement = connection.prepareStatement(sql)) {
             statement.setString(1, schema);
             try (ResultSet result = statement.executeQuery()) {
                 while (result.next()) {
-                    actual.put(result.getString(1), normalized(result.getString(2)));
+                    actual.put(result.getString(1), new CheckConstraint(
+                            normalized(result.getString(2)), result.getString(3)));
                 }
             }
         }
         EXPECTED_CHECKS.forEach((name, clause) -> {
-            if (!clause.equals(actual.get(name))) {
+            CheckConstraint constraint = actual.get(name);
+            if (constraint == null || !clause.equals(constraint.clause())) {
                 errors.add("check constraint mismatch: " + name + " expected " + clause
-                        + " but was " + actual.get(name));
+                        + " but was " + (constraint == null ? null : constraint.clause()));
+            }
+            if (constraint != null && !"YES".equalsIgnoreCase(constraint.enforced())) {
+                errors.add("check constraint not enforced: " + name
+                        + " expected ENFORCED=YES but was " + constraint.enforced());
             }
         });
+    }
+
+    private static void verifyColumn(String table, Column expected, Column actual,
+                                     List<String> errors) {
+        String qualified = table + "." + expected.name();
+        if (!expected.coreMatches(actual)) {
+            errors.add("column mismatch: " + qualified + " expected " + expected
+                    + " but was " + actual);
+        }
+        if (expected.autoIncrement() != actual.autoIncrement()) {
+            errors.add("column auto_increment mismatch: " + qualified + " expected "
+                    + yesNo(expected.autoIncrement()) + " but was " + yesNo(actual.autoIncrement()));
+        }
+        if (!Objects.equals(expected.defaultValue(), actual.defaultValue())) {
+            errors.add("column default mismatch: " + qualified + " expected "
+                    + display(expected.defaultValue()) + " but was " + display(actual.defaultValue()));
+        }
+        if (!Objects.equals(expected.onUpdate(), actual.onUpdate())) {
+            errors.add("column on-update mismatch: " + qualified + " expected "
+                    + display(expected.onUpdate()) + " but was " + display(actual.onUpdate()));
+        }
+        if (!expected.extra().equals(actual.extra())) {
+            errors.add("column extra mismatch: " + qualified + " expected "
+                    + display(expected.extra()) + " but was " + display(actual.extra()));
+        }
+    }
+
+    private static String normalizedDefault(String value) {
+        if (value == null) {
+            return null;
+        }
+        String trimmed = value.trim();
+        return "current_timestamp(3)".equalsIgnoreCase(trimmed)
+                ? "current_timestamp(3)" : trimmed;
+    }
+
+    private static String normalizedExtra(String value) {
+        return value == null ? "" : value.trim().toLowerCase().replaceAll("\\s+", " ");
+    }
+
+    private static String onUpdateExpression(String extra) {
+        String normalized = normalizedExtra(extra);
+        String marker = "on update ";
+        int index = normalized.indexOf(marker);
+        return index < 0 ? null : normalizedDefault(normalized.substring(index + marker.length()));
+    }
+
+    private static String yesNo(boolean value) {
+        return value ? "YES" : "NO";
+    }
+
+    private static String display(String value) {
+        return value == null ? "<none>" : value;
     }
 
     private static String normalized(String expression) {
@@ -297,39 +360,66 @@ public final class Phase1SchemaVerifier {
     private static Map<String, List<Column>> expectedColumns() {
         Map<String, List<Column>> columns = new LinkedHashMap<>();
         columns.put("users", List.of(
-                c("id", "bigint", 19, 0, false), c("username", "varchar", 50, 0, false),
+                id("id"), c("username", "varchar", 50, 0, false),
                 c("password_hash", "varchar", 255, 0, false), c("full_name", "varchar", 100, 0, false),
-                c("email", "varchar", 100, 0, false), c("role", "varchar", 20, 0, false),
-                c("created_at", "datetime", 23, 3, false)));
+                c("email", "varchar", 100, 0, false),
+                c("role", "varchar", 20, 0, false, "ROLE_USER"),
+                c("created_at", "datetime", 23, 3, false, "current_timestamp(3)")));
         columns.put("wallets", List.of(
-                c("id", "bigint", 19, 0, false), c("user_id", "bigint", 19, 0, false),
-                c("wallet_number", "varchar", 30, 0, false), c("balance", "bigint", 19, 0, false),
-                c("status", "varchar", 20, 0, false), c("version", "bigint", 19, 0, false),
-                c("created_at", "datetime", 23, 3, false), c("updated_at", "datetime", 23, 3, false)));
+                id("id"), c("user_id", "bigint", 19, 0, false),
+                c("wallet_number", "varchar", 30, 0, false),
+                c("balance", "bigint", 19, 0, false, "0"),
+                c("status", "varchar", 20, 0, false, "ACTIVE"),
+                c("version", "bigint", 19, 0, false, "0"),
+                c("created_at", "datetime", 23, 3, false, "current_timestamp(3)"),
+                c("updated_at", "datetime", 23, 3, false, "current_timestamp(3)",
+                        "current_timestamp(3)")));
         columns.put("linked_bank_accounts", List.of(
-                c("id", "bigint", 19, 0, false), c("wallet_id", "bigint", 19, 0, false),
+                id("id"), c("wallet_id", "bigint", 19, 0, false),
                 c("bank_code", "varchar", 20, 0, false), c("bank_name", "varchar", 100, 0, false),
                 c("account_number_masked", "varchar", 50, 0, false),
-                c("holder_name", "varchar", 100, 0, false), c("status", "varchar", 20, 0, false),
-                c("linked_at", "datetime", 23, 3, false), c("unlinked_at", "datetime", 23, 3, true)));
+                c("holder_name", "varchar", 100, 0, false),
+                c("status", "varchar", 20, 0, false, "ACTIVE"),
+                c("linked_at", "datetime", 23, 3, false, "current_timestamp(3)"),
+                c("unlinked_at", "datetime", 23, 3, true)));
         columns.put("transactions", List.of(
-                c("id", "bigint", 19, 0, false), c("reference_code", "varchar", 36, 0, false),
+                id("id"), c("reference_code", "varchar", 36, 0, false),
                 c("type", "varchar", 20, 0, false), c("source_wallet_id", "bigint", 19, 0, true),
                 c("target_wallet_id", "bigint", 19, 0, true),
                 c("linked_bank_account_id", "bigint", 19, 0, true),
                 c("amount", "bigint", 19, 0, false), c("description", "varchar", 255, 0, true),
-                c("created_at", "datetime", 23, 3, false)));
+                c("created_at", "datetime", 23, 3, false, "current_timestamp(3)")));
         return columns;
     }
 
     private static Column c(String name, String type, int size, int scale, boolean nullable) {
-        return new Column(name, type, size, scale, nullable);
+        return new Column(name, type, size, scale, nullable, null, false, null, "");
     }
 
-    private record Column(String name, String type, int size, int scale, boolean nullable) {
-        boolean matches(Column other) {
+    private static Column c(String name, String type, int size, int scale, boolean nullable,
+                            String defaultValue) {
+        String extra = "current_timestamp(3)".equals(defaultValue) ? "default_generated" : "";
+        return new Column(name, type, size, scale, nullable, defaultValue, false, null, extra);
+    }
+
+    private static Column c(String name, String type, int size, int scale, boolean nullable,
+                            String defaultValue, String onUpdate) {
+        return new Column(name, type, size, scale, nullable, defaultValue, false, onUpdate,
+                "default_generated on update " + onUpdate);
+    }
+
+    private static Column id(String name) {
+        return new Column(name, "bigint", 19, 0, false, null, true, null, "auto_increment");
+    }
+
+    private record Column(String name, String type, int size, int scale, boolean nullable,
+                          String defaultValue, boolean autoIncrement, String onUpdate, String extra) {
+        boolean coreMatches(Column other) {
             return type.equals(other.type) && size == other.size && scale == other.scale
                     && nullable == other.nullable;
         }
+    }
+
+    private record CheckConstraint(String clause, String enforced) {
     }
 }
