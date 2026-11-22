@@ -64,7 +64,9 @@ class PaymentTransactionIntegrationTest {
     }
 
     @Test void transferCommitsBothBalancesAndSingleHistoryRow() {
+        var before = java.time.Instant.now().minusMillis(1);
         var result = transfers.transfer(new TransferCommand(101L, "C03TARGET", 250L, "transfer"));
+        var after = java.time.Instant.now().plusMillis(1);
         assertThat(result.getSourceWalletId()).isEqualTo(11L);
         assertThat(result.getTargetWalletId()).isEqualTo(22L);
         assertThat(balance(11)).isEqualTo(750);
@@ -73,6 +75,8 @@ class PaymentTransactionIntegrationTest {
         assertThat(jdbc.queryForObject("SELECT SUM(balance) FROM wallets", Long.class)).isEqualTo(1500);
         assertThat(wallets.getOwnedWallet(101).version()).isEqualTo(1);
         assertThat(wallets.getOwnedWallet(202).version()).isEqualTo(1);
+        assertThat(wallets.getOwnedWallet(101).updatedAt()).isBetween(before, after);
+        assertThat(wallets.getOwnedWallet(202).updatedAt()).isBetween(before, after);
     }
 
     @Test void mysqlHistoryFailureRollsBackBothBalancesAndVersions() {

@@ -42,9 +42,7 @@ final class ModuleArchitectureVerifier {
         for (JavaClass source : classes) {
             if (!insideRoot(source, policy.root())) continue;
             String sourceModule = module(source.getPackageName(), policy);
-            if (sourceModule == null && Set.of("application", "domain", "adapter").stream()
-                    .anyMatch(layer -> source.getPackageName().equals(policy.root() + "." + layer)
-                            || source.getPackageName().startsWith(policy.root() + "." + layer + "."))) {
+            if (sourceModule == null && !isInfrastructure(source, policy)) {
                 errors.add(source.getName() + " is an unmodularized legacy business type");
             }
             if (sourceModule != null) verifyLayer(source, sourceModule, policy, errors);
@@ -148,6 +146,14 @@ final class ModuleArchitectureVerifier {
 
     private static boolean insideRoot(JavaClass type, String root) {
         return type.getPackageName().equals(root) || type.getPackageName().startsWith(root + ".");
+    }
+
+    /** Only the exact Spring entry point and explicit infrastructure namespaces may live outside modules. */
+    private static boolean isInfrastructure(JavaClass type, Policy policy) {
+        if (type.getName().equals(policy.root() + ".DigitalwalletSystemApplication")) return true;
+        return Set.of("bootstrap", "migration").stream().anyMatch(namespace ->
+                type.getPackageName().equals(policy.root() + "." + namespace)
+                        || type.getPackageName().startsWith(policy.root() + "." + namespace + "."));
     }
 
     private static String relativeName(String className, String root) {

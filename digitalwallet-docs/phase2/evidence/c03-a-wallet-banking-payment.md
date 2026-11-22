@@ -52,3 +52,15 @@ Local chạy `build` thay vì `clean build` vì thư mục build hiện chứa c
 Hai lỗi cấu hình test đã được sửa trước lần full build PASS: fixture UNLINKED thiếu `unlinked_at` vi phạm CHECK và test Wallet HTTP mới đăng ký JWT filter trùng. Không thay CHECK/schema hay production security để né lỗi.
 
 Chưa chạy benchmark hiệu năng mới và không tuyên bố throughput/latency cải thiện. Raw C00 không sửa. Bank query hiện không khóa row; concurrency/retry/overflow và unlink race thuộc C05. Idempotency/outbox/worker/pagination thuộc các task kế tiếp. C03-A chỉ nghiệm thu modularization, tương thích và transaction boundaries.
+
+
+## 5. Review revision C03-A-r2
+
+Base sửa `2489ddb`; hai findings được ghi ở discussion_r4656837942 (UTC) và discussion_r4656837945 (outside-module gate). Contract bổ sung: `../contracts/C03-A-r2.md`.
+
+- Trước sửa, regression mới chạy 11 tests và FAIL đúng 4 case: timezone Bangkok/Honolulu, dependency-free root class, dependency-free service class.
+- Sau sửa, `gradlew.bat build --no-daemon`: **133 tests, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESSFUL. Đây là số mới thay cho 128 của candidate đầu.
+- Posting ghi UTC tường minh; hai timezone unit cases PASS. MySQL transfer kiểm tra updatedAt đọc lại của cả hai ví là thời điểm thực, dung sai DATETIME(3).
+- Gate kiểm tra mọi class trong project: chỉ exact entry point và bootstrap/migration namespaces được phép ngoài named modules. Hai negative fixtures mới cùng positive infrastructure fixture PASS qua production rule engine.
+- Không đổi schema, precision, transaction propagation, CI/ruleset hoặc dữ liệu lịch sử. Chỉ sửa UTC cho timestamp ghi mới; giữ format JSON.
+- Required CI của head mới và trả lời/resolve threads được xác nhận trên PR sau push; không dùng CI candidate cũ làm nghiệm thu revision này.

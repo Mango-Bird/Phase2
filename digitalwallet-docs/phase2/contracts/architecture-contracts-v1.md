@@ -42,7 +42,7 @@ Database FK được phép trỏ sang bảng module khác; không đồng nghĩa
 
 C03-A đóng giai đoạn chuyển tiếp: `WalletCreationService` dùng persistence thuộc Wallet; không còn `wallet.adapter.legacy` hoặc business packages `application/domain/adapter` ở root. Hai exception maps của architecture policy rỗng. Web handler nằm trong Platform và chỉ nhận `platform.api.error.ModuleFailure`; Identity/Wallet/Banking publish lỗi kế thừa contract này, nên Platform không phụ thuộc ngược các module nghiệp vụ.
 
-Architecture gate kiểm tra cả production graph, cấm tái đưa business class về root dù class chưa có dependency. Chỉ Payment được dùng `WalletPostingApi` và seam đọc `BankAccountQueryApi`; owner được implement chính API của mình. Chỉ Onboarding ngoài owner được dùng hai creation APIs. Negative fixtures chạy chung rule engine để chứng minh các giới hạn này.
+Architecture gate kiểm tra cả production graph, cấm tái đưa business class về root hoặc package ngoài module bất kỳ dù class chưa có dependency. Revision C03-A-r2 chỉ chấp nhận ngoài module đúng entry point `DigitalwalletSystemApplication` và namespaces hạ tầng `bootstrap`/`migration`; có negative fixtures tại root và service, positive fixtures cho hạ tầng hợp lệ. Chỉ Payment được dùng `WalletPostingApi` và seam đọc `BankAccountQueryApi`; owner được implement chính API của mình. Chỉ Onboarding ngoài owner được dùng hai creation APIs. Negative fixtures chạy chung rule engine để chứng minh các giới hạn này.
 
 ### 2.2. Revision C03-A-r1 — triển khai theo từng task
 

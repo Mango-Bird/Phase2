@@ -10,6 +10,7 @@ import sa.uet.digitalwallet_system.wallet.api.error.WalletNotFoundException;
 import sa.uet.digitalwallet_system.wallet.application.port.out.*;
 import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 
 @Service
 @RequiredArgsConstructor
@@ -29,7 +30,7 @@ public class WalletPostingService implements WalletPostingApi {
         if (wallet.getVersion() != change.expectedVersion() || wallet.getBalance() != change.expectedBalance()) {
             throw new OptimisticLockingFailureException("Wallet snapshot changed");
         }
-        saveWalletPort.save(wallet.withBalance(change.newBalance()).withUpdatedAt(LocalDateTime.now()));
+        saveWalletPort.save(wallet.withBalance(change.newBalance()).withUpdatedAt(LocalDateTime.now(ZoneOffset.UTC)));
     }
     private PostingWallet snapshot(Wallet wallet) {
         return new PostingWallet(wallet.getId(), wallet.getUserId(), wallet.getWalletNumber(),
