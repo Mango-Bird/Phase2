@@ -40,11 +40,19 @@ Database FK được phép trỏ sang bảng module khác; không đồng nghĩa
 - Chỉ Payment được import WalletPostingApi và BankEligibilityApi; chỉ Onboarding được import IdentityRegistrationApi/WalletCreationApi. Banking và Reconciliation chỉ dùng read APIs được cho phép, không gọi posting.
 - C03-B ghi ngoại lệ chuyển tiếp theo package cụ thể để app còn chạy; C03-A phải gỡ ngoại lệ khi Payment/Wallet/Banking đã di chuyển. Không release khi còn allow-all cho modules đích.
 
-Ngoại lệ chuyển tiếp C03-B được đóng cụ thể tại `wallet.adapter.legacy.LegacyWalletCreationBridge`: chỉ class này được phụ thuộc `application.port.out.SaveWalletPort`, `domain.model.Wallet` và nested builder do Lombok sinh. Architecture test không có wildcard exception và từ chối mọi named-module class khác dùng legacy root. A phải thay bridge bằng Wallet implementation chuẩn và xóa ngoại lệ này trong C03-A.
+C03-A đóng giai đoạn chuyển tiếp: `WalletCreationService` dùng persistence thuộc Wallet; không còn `wallet.adapter.legacy` hoặc business packages `application/domain/adapter` ở root. Hai exception maps của architecture policy rỗng. Web handler nằm trong Platform và chỉ nhận `platform.api.error.ModuleFailure`; Identity/Wallet/Banking publish lỗi kế thừa contract này, nên Platform không phụ thuộc ngược các module nghiệp vụ.
 
-Gate C03-B cũng kiểm tra chiều legacy → named module: legacy source không được import internals; ngoại lệ public API duy nhất hiện tại là `adapter.in.web.handler.GlobalExceptionHandler` → hai Identity public error types. Write API có caller restriction riêng: ngoài implementation owner, chỉ Onboarding được gọi `IdentityRegistrationApi` và `WalletCreationApi`. Public `api` package không được phụ thuộc domain/application/adapter của chính module.
+Architecture gate kiểm tra cả production graph, cấm tái đưa business class về root hoặc package ngoài module bất kỳ dù class chưa có dependency. Revision C03-A-r2 chỉ chấp nhận ngoài module đúng entry point `DigitalwalletSystemApplication` và namespaces hạ tầng `bootstrap`/`migration`; có negative fixtures tại root và service, positive fixtures cho hạ tầng hợp lệ. Chỉ Payment được dùng `WalletPostingApi` và seam đọc `BankAccountQueryApi`; owner được implement chính API của mình. Chỉ Onboarding ngoài owner được dùng hai creation APIs. Negative fixtures chạy chung rule engine để chứng minh các giới hạn này.
 
-Trình tự C03: B publish các API/interface và DTO đã chốt trước, giữ đường register legacy qua một bridge được liệt kê cụ thể nếu backing Wallet chưa di chuyển. A hoàn thiện Wallet implementation và nối Onboarding nguyên tử ở C03-A rồi gỡ bridge/ngoại lệ. C03-B không được tự tách create-user và create-wallet thành hai transaction để vượt dependency.
+### 2.2. Revision C03-A-r1 — triển khai theo từng task
+
+Các chữ ký ở mục 3 là đích toàn Phase 2. C03-A triển khai `WalletQueryApi`, `WalletPostingApi`, native `WalletCreationApi` và immutable records `PostingWallet/BalanceChange`; không thay HTTP. `BalanceChange(walletId, expectedVersion, expectedBalance, newBalance)` dùng số dư tuyệt đối từ snapshot; owner reload, kiểm tra snapshot rồi ghi bằng JPA `@Version`, trong transaction bắt buộc của Payment. Một lần gọi không tự commit, không retry.
+
+Banking hiện publish `BankAccountQueryApi.requireActiveAccount(linkedBankId,walletId)` để kiểm tra sở hữu/trạng thái trong transaction Payment. API này **chưa khóa bank row**, không được diễn giải thành guarantee chống race unlink/payment. `BankEligibilityApi` với locking semantics được hoàn thiện tại C05-A. Internal BankLink và Payment use-case ports chỉ được controller cùng module gọi, chưa phải public contracts cho module khác. Payment command nhận actor do auth adapter cấp, không nhận source wallet từ body.
+
+`PaymentCommandApi` kèm key/receipt được publish tại C04-A khi idempotency thực sự tồn tại; history API có cursor tại C08-A. Không tạo tham số key bị bỏ qua hoặc lớp receipt giả tại C03. C06/C10 vẫn phải dùng các public event/read APIs được chốt ở mục 3 khi triển khai; không import use case/domain/persistence hiện tại. Revision này không thay thứ tự migration, invariant hoặc acceptance gates của các task sau.
+
+HTTP timestamps giữ định dạng LocalDateTime cũ; Wallet public view theo cách diễn giải UTC đã có ở C03-B, HTTP adapter chuyển ngược cùng ZoneOffset để không đổi giá trị hiển thị. Không cập nhật hay gắn lại timezone dữ liệu lịch sử.
 
 ## 3. Java public interfaces — chữ ký đích
 

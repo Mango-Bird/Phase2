@@ -10,7 +10,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.IllegalTransactionStateException;
 import sa.uet.digitalwallet_system.identity.api.*;
 import sa.uet.digitalwallet_system.onboarding.api.*;
-import sa.uet.digitalwallet_system.wallet.adapter.legacy.WalletNumberGenerator;
+import sa.uet.digitalwallet_system.wallet.application.port.out.WalletNumberGenerator;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.mysql.MySQLContainer;

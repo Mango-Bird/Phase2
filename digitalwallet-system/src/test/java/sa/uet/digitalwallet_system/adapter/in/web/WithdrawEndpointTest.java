@@ -12,13 +12,19 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
 import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
-import sa.uet.digitalwallet_system.adapter.in.web.controller.TransactionController;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.payment.adapter.in.web.controller.TransactionController;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
-import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
-import sa.uet.digitalwallet_system.application.port.out.*;
-import sa.uet.digitalwallet_system.application.service.TransactionService;
-import sa.uet.digitalwallet_system.domain.model.*;
+import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
+import sa.uet.digitalwallet_system.banking.application.port.out.LoadLinkedBankPort;
+import sa.uet.digitalwallet_system.payment.application.port.out.LoadTransactionPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.LoadWalletPort;
+import sa.uet.digitalwallet_system.payment.application.port.out.SaveTransactionPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.SaveWalletPort;
+import sa.uet.digitalwallet_system.payment.application.service.TransactionService;
+import sa.uet.digitalwallet_system.banking.domain.model.LinkedBankAccount;
+import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.util.Optional;
 
@@ -33,13 +39,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=withdraw-endpoint-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, GlobalExceptionHandler.class})
+        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
 class WithdrawEndpointTest {
     private static final String PATH = "/api/v1/transactions/withdraw";
     private static final String BODY = "{\"linkedBankAccountId\":501,\"amount\":250,\"description\":\"Rut tien\"}";
     @Autowired WebApplicationContext context;
     @Autowired JwtTokenService tokenGenerator;
-    @MockitoBean GetWalletUseCase getWalletUseCase;
+    @MockitoBean WalletQueryApi getWalletUseCase;
     @MockitoBean LoadWalletPort loadWalletPort;
     @MockitoBean SaveWalletPort saveWalletPort;
     @MockitoBean LoadLinkedBankPort loadLinkedBankPort;
@@ -136,10 +142,11 @@ class WithdrawEndpointTest {
     private String token() { return tokenGenerator.issue(99L, "withdraw-user", "ROLE_USER").value(); }
 
     private void stub(long balance, String walletStatus, String bankStatus) {
-        Wallet wallet = Wallet.builder().id(10L).userId(99L).walletNumber("WAL10")
+        Wallet wallet = Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).id(10L).userId(99L).walletNumber("WAL10")
                 .balance(balance).status(walletStatus).build();
-        when(getWalletUseCase.getWallet(99L)).thenReturn(wallet);
+        when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet));
+        when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet));
         when(loadLinkedBankPort.loadByIdAndWalletId(501L, 10L)).thenReturn(bankStatus == null
                 ? Optional.empty() : Optional.of(LinkedBankAccount.builder()
                 .id(501L).walletId(10L).status(bankStatus).build()));

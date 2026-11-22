@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.assertThatCode;
 
 class ArchitectureRuleProofTest {
     @Test void productionEngineRejectsForbiddenCrossModuleInternalImport() {
@@ -41,5 +42,33 @@ class ArchitectureRuleProofTest {
         var policy = ModuleArchitectureVerifier.fixturePolicy(root, modules, graph);
         assertThatThrownBy(() -> ModuleArchitectureVerifier.verifyProduction(classes, policy))
                 .isInstanceOf(AssertionError.class).hasMessageContaining(expectedMessage);
+    }
+
+    @Test void productionEngineRejectsBankingCallingWalletPostingEvenThroughPublicApi() {
+        assertRejected("architecture.fixtures.postingcaller", Set.of("wallet", "banking", "payment"),
+                Map.of("banking", Set.of("wallet"), "wallet", Set.of(), "payment", Set.of("wallet")),
+                "is not an allowed caller");
+    }
+
+    @Test void productionEngineRejectsReintroducedLegacyBusinessClassWithoutDependencies() {
+        assertRejected("architecture.fixtures.legacybusiness", Set.of("wallet"),
+                Map.of("wallet", Set.of()), "unmodularized legacy business type");
+    }
+
+    @Test void productionEngineRejectsBusinessClassDirectlyInRootPackage() {
+        assertRejected("architecture.fixtures.rootbusiness", Set.of("wallet"),
+                Map.of("wallet", Set.of()), "unmodularized legacy business type");
+    }
+
+    @Test void productionEngineRejectsUnrecognizedServicePackageWithoutDependencies() {
+        assertRejected("architecture.fixtures.servicebusiness", Set.of("wallet"),
+                Map.of("wallet", Set.of()), "unmodularized legacy business type");
+    }
+
+    @Test void productionEngineAllowsExplicitEntryPointBootstrapAndMigrationInfrastructure() {
+        var classes = new ClassFileImporter().importPackages("architecture.fixtures.infrastructure");
+        var policy = ModuleArchitectureVerifier.fixturePolicy("architecture.fixtures.infrastructure",
+                Set.of("wallet"), Map.of("wallet", Set.of()));
+        assertThatCode(() -> ModuleArchitectureVerifier.verifyProduction(classes, policy)).doesNotThrowAnyException();
     }
 }

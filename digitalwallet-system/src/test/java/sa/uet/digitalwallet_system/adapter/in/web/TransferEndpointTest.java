@@ -12,13 +12,18 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
 import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
-import sa.uet.digitalwallet_system.adapter.in.web.controller.TransactionController;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.payment.adapter.in.web.controller.TransactionController;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
-import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
-import sa.uet.digitalwallet_system.application.port.out.*;
-import sa.uet.digitalwallet_system.application.service.TransactionService;
-import sa.uet.digitalwallet_system.domain.model.*;
+import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
+import sa.uet.digitalwallet_system.banking.application.port.out.LoadLinkedBankPort;
+import sa.uet.digitalwallet_system.payment.application.port.out.LoadTransactionPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.LoadWalletPort;
+import sa.uet.digitalwallet_system.payment.application.port.out.SaveTransactionPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.SaveWalletPort;
+import sa.uet.digitalwallet_system.payment.application.service.TransactionService;
+import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.util.Optional;
 
@@ -33,13 +38,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=transfer-endpoint-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, GlobalExceptionHandler.class})
+        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
 class TransferEndpointTest {
     private static final String PATH = "/api/v1/transactions/transfer";
     private static final String BODY = "{\"targetWalletNumber\":\"WAL20\",\"amount\":250,\"description\":\"Chuyen tien\"}";
     @Autowired WebApplicationContext context;
     @Autowired JwtTokenService tokenGenerator;
-    @MockitoBean GetWalletUseCase getWalletUseCase;
+    @MockitoBean WalletQueryApi getWalletUseCase;
     @MockitoBean LoadWalletPort loadWalletPort;
     @MockitoBean SaveWalletPort saveWalletPort;
     @MockitoBean LoadLinkedBankPort loadLinkedBankPort;
@@ -93,8 +98,9 @@ class TransferEndpointTest {
     }
 
     @Test void missingTargetReturns404WithoutWrites() throws Exception {
-        when(getWalletUseCase.getWallet(99L)).thenReturn(wallet(10, 1000, "ACTIVE"));
+        when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet(10, 1000, "ACTIVE")));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet(10, 1000, "ACTIVE")));
+        when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet(10, 1000, "ACTIVE")));
         when(loadWalletPort.loadByWalletNumber("WAL20")).thenReturn(Optional.empty());
         request(BODY, token()).andExpect(status().isNotFound());
         noWrites();
@@ -137,14 +143,16 @@ class TransferEndpointTest {
     private String token() { return tokenGenerator.issue(99L, "transfer-user", "ROLE_USER").value(); }
 
     private Wallet wallet(long id, long balance, String status) {
-        return Wallet.builder().id(id).userId(id == 10 ? 99L : 100L).walletNumber("WAL" + id)
+        return Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).id(id).userId(id == 10 ? 99L : 100L).walletNumber("WAL" + id)
                 .balance(balance).status(status).build();
     }
 
     private void stub(Wallet source, Wallet target) {
-        when(getWalletUseCase.getWallet(99L)).thenReturn(source);
+        when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(source));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(source));
+        when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(source));
         when(loadWalletPort.loadByWalletNumber("WAL20")).thenReturn(Optional.of(target));
+        when(loadWalletPort.loadById(target.getId())).thenReturn(Optional.of(target));
         when(saveTransactionPort.save(any(Transaction.class))).thenAnswer(call -> call.getArgument(0));
     }
 

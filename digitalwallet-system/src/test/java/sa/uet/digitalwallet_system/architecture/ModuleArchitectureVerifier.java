@@ -24,19 +24,11 @@ final class ModuleArchitectureVerifier {
             PRODUCTION_GRAPH,
             Map.of(
                     "identity.api.IdentityRegistrationApi", Set.of("identity", "onboarding"),
-                    "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding")
+                    "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding"),
+                    "wallet.api.WalletPostingApi", Set.of("wallet", "payment"),
+                    "banking.api.BankAccountQueryApi", Set.of("banking", "payment")
             ),
-            Map.of(
-                    "sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler", Set.of(
-                            "sa.uet.digitalwallet_system.identity.api.error.DuplicateUserException",
-                            "sa.uet.digitalwallet_system.identity.api.error.InvalidCredentialsException")
-            ),
-            Map.of(
-                    "sa.uet.digitalwallet_system.wallet.adapter.legacy.LegacyWalletCreationBridge", Set.of(
-                            "sa.uet.digitalwallet_system.application.port.out.SaveWalletPort",
-                            "sa.uet.digitalwallet_system.domain.model.Wallet",
-                            "sa.uet.digitalwallet_system.domain.model.Wallet$")
-            ));
+            Map.of(), Map.of());
 
     static void verifyProduction(JavaClasses classes) {
         verifyProduction(classes, PRODUCTION_POLICY);
@@ -50,6 +42,9 @@ final class ModuleArchitectureVerifier {
         for (JavaClass source : classes) {
             if (!insideRoot(source, policy.root())) continue;
             String sourceModule = module(source.getPackageName(), policy);
+            if (sourceModule == null && !isInfrastructure(source, policy)) {
+                errors.add(source.getName() + " is an unmodularized legacy business type");
+            }
             if (sourceModule != null) verifyLayer(source, sourceModule, policy, errors);
 
             for (Dependency dependency : source.getDirectDependenciesFromSelf()) {
@@ -89,7 +84,9 @@ final class ModuleArchitectureVerifier {
     static Policy fixturePolicy(String root, Set<String> modules, Map<String, Set<String>> graph) {
         return new Policy(root, modules, graph,
                 Map.of("identity.api.IdentityRegistrationApi", Set.of("identity", "onboarding"),
-                       "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding")),
+                       "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding"),
+                       "wallet.api.WalletPostingApi", Set.of("wallet", "payment"),
+                       "banking.api.BankAccountQueryApi", Set.of("banking", "payment")),
                 Map.of(), Map.of());
     }
 
@@ -149,6 +146,14 @@ final class ModuleArchitectureVerifier {
 
     private static boolean insideRoot(JavaClass type, String root) {
         return type.getPackageName().equals(root) || type.getPackageName().startsWith(root + ".");
+    }
+
+    /** Only the exact Spring entry point and explicit infrastructure namespaces may live outside modules. */
+    private static boolean isInfrastructure(JavaClass type, Policy policy) {
+        if (type.getName().equals(policy.root() + ".DigitalwalletSystemApplication")) return true;
+        return Set.of("bootstrap", "migration").stream().anyMatch(namespace ->
+                type.getPackageName().equals(policy.root() + "." + namespace)
+                        || type.getPackageName().startsWith(policy.root() + "." + namespace + "."));
     }
 
     private static String relativeName(String className, String root) {

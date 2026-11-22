@@ -1,7 +1,9 @@
 package sa.uet.digitalwallet_system.identity.api.error;
 
-public class InvalidCredentialsException extends RuntimeException {
+import sa.uet.digitalwallet_system.platform.api.error.ModuleFailure;
+
+public class InvalidCredentialsException extends ModuleFailure {
     public InvalidCredentialsException() {
-        super("Invalid username or password");
+        super(Kind.INVALID_CREDENTIALS, "Invalid username or password");
     }
 }
