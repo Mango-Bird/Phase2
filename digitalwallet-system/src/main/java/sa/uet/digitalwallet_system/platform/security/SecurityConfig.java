@@ -21,17 +21,24 @@ public class SecurityConfig {
         return http.csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .exceptionHandling(e -> e.authenticationEntryPoint((r, response, x) -> {
-                    response.setContentType("application/json"); response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-                    response.getWriter().write("{\"status\":401,\"error\":\"Unauthorized\",\"message\":\"Authentication required\"}");
+                    authError(response, r.getRequestURI(), 401, "Unauthorized", "Authentication required");
                 }).accessDeniedHandler((r, response, x) -> {
-                    response.setContentType("application/json"); response.setStatus(HttpServletResponse.SC_FORBIDDEN);
-                    response.getWriter().write("{\"status\":403,\"error\":\"Forbidden\",\"message\":\"Access denied\"}");
+                    authError(response, r.getRequestURI(), 403, "Forbidden", "Access denied");
                 }))
                 .authorizeHttpRequests(a -> a
                         .requestMatchers(HttpMethod.POST, "/api/v1/auth/register", "/api/v1/auth/login").permitAll()
                         .requestMatchers("/swagger-ui/**", "/swagger-ui.html", "/v3/api-docs/**", "/api-docs/**").permitAll()
                         .anyRequest().authenticated())
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class).build();
+    }
+    private static final com.fasterxml.jackson.databind.ObjectMapper ERROR_JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+    private static void authError(HttpServletResponse response, String path, int status, String error, String message) throws java.io.IOException {
+        String trace = java.util.UUID.randomUUID().toString();
+        response.setContentType("application/json"); response.setStatus(status);
+        response.getWriter().write(ERROR_JSON.writeValueAsString(java.util.Map.of(
+                "timestamp", java.time.LocalDateTime.now(java.time.ZoneOffset.UTC).toString(),
+                "status", status, "error", error, "message", message, "path", path,
+                "code", status == 401 ? "UNAUTHENTICATED" : "FORBIDDEN", "retryable", false, "traceId", trace)));
     }
     @Bean PasswordEncoder passwordEncoder() { return new BCryptPasswordEncoder(); }
 }

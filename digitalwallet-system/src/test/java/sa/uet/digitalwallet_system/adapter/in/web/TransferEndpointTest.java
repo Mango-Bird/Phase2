@@ -38,7 +38,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=transfer-endpoint-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
+        TransactionService.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentFacade.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
+        sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
 class TransferEndpointTest {
     private static final String PATH = "/api/v1/transactions/transfer";
     private static final String BODY = "{\"targetWalletNumber\":\"WAL20\",\"amount\":250,\"description\":\"Chuyen tien\"}";
@@ -137,7 +142,7 @@ class TransferEndpointTest {
 
     private org.springframework.test.web.servlet.ResultActions request(String body, String jwt) throws Exception {
         return mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + jwt).content(body));
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString()).header("Authorization", "Bearer " + jwt).content(body));
     }
 
     private String token() { return tokenGenerator.issue(99L, "transfer-user", "ROLE_USER").value(); }
@@ -153,7 +158,7 @@ class TransferEndpointTest {
         when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(source));
         when(loadWalletPort.loadByWalletNumber("WAL20")).thenReturn(Optional.of(target));
         when(loadWalletPort.loadById(target.getId())).thenReturn(Optional.of(target));
-        when(saveTransactionPort.save(any(Transaction.class))).thenAnswer(call -> call.getArgument(0));
+        when(saveTransactionPort.save(any(Transaction.class))).thenAnswer(call -> sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.saved(call.getArgument(0)));
     }
 
     private void noWrites() { verifyNoInteractions(saveWalletPort, saveTransactionPort); }

@@ -69,3 +69,10 @@ SAUETDigitalWallet/
     │
     └── results/                          # thư mục chứa kết quả (log trước khi visualize)
 ```
+
+
+## C04-A payment key compatibility
+
+`k6/lib/api.js` tạo key mới cho mỗi ý định topUp/withdraw/transfer và gửi Idempotency-Key; mỗi result trả lại `idempotencyKey`. Không có auto-retry. Nếu caller retry một ý định, truyền lại key cũ ở argument thứ tư: `api.topUp(token, payload, [200, 409], previous.idempotencyKey)`; áp dụng tương tự transfer/withdraw. Không dùng key mới khi chưa biết outcome. Key mới nghĩa là một business effect mới, kể cả payload giống nhau.
+
+C00 raw/evidence cũ không được sửa. Client bổ sung header nhưng giữ body/request names/offered workload; mọi benchmark mới phải ghi đúng source revision. Chưa có benchmark hiệu năng C04 trong PR triển khai idempotency.

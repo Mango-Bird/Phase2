@@ -5,6 +5,11 @@
 
 import http from 'k6/http';
 import { check } from 'k6';
+import exec from 'k6/execution';
+
+let paymentSequence = 0;
+const runNonce = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+function newPaymentKey() { return `${runNonce}:${exec.vu.idInTest}:${++paymentSequence}`; }
 
 export class ApiClient {
   constructor(baseUrl, monitor) {
@@ -12,10 +17,11 @@ export class ApiClient {
     this.monitor = monitor;
   }
 
-  _request(method, path, { token, body, requestName, expected, state }) {
+  _request(method, path, { token, body, requestName, expected, state, idempotencyKey }) {
     const url = `${this.baseUrl}${path}`;
     const headers = { 'Content-Type': 'application/json' };
     if (token) headers['Authorization'] = `Bearer ${token}`;
+    if (idempotencyKey !== undefined) headers['Idempotency-Key'] = idempotencyKey;
 
     let res = null, actual = null, error = null;
     try {
@@ -53,6 +59,7 @@ export class ApiClient {
 
     return {
       status: actual,
+      idempotencyKey, // A transport retry must pass this same key back to the payment method.
       body:   parsedBody,
       durationMs: res ? res.timings.duration : null,
       error,
@@ -91,19 +98,19 @@ export class ApiClient {
       { requestName: 'linkBank', expected: [201], token, body: payload });
   }
 
-  topUp(token, payload, expected = [200]) {
+  topUp(token, payload, expected = [200], idempotencyKey = newPaymentKey()) {
     return this._request('POST', '/api/v1/transactions/topup',
-      { requestName: 'topUp', expected, token, body: payload });
+      { requestName: 'topUp', expected, token, body: payload, idempotencyKey });
   }
 
-  transfer(token, payload, expected = [200]) {
+  transfer(token, payload, expected = [200], idempotencyKey = newPaymentKey()) {
     return this._request('POST', '/api/v1/transactions/transfer',
-      { requestName: 'transfer', expected, token, body: payload });
+      { requestName: 'transfer', expected, token, body: payload, idempotencyKey });
   }
 
-  withdraw(token, payload, expected = [200]) {
+  withdraw(token, payload, expected = [200], idempotencyKey = newPaymentKey()) {
     return this._request('POST', '/api/v1/transactions/withdraw',
-      { requestName: 'withdraw', expected, token, body: payload });
+      { requestName: 'withdraw', expected, token, body: payload, idempotencyKey });
   }
 
   unlinkBank(token, id) {

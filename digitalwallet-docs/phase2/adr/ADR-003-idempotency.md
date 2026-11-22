@@ -1,6 +1,6 @@
 # ADR-003 — Idempotency đồng bộ
 
-Trạng thái: **DECIDED — C01-A candidate**, chờ A review/merge để trở thành ACCEPTED. Ngày: 17/11/2026.
+Trạng thái: **ACCEPTED — thiết kế C01-A đã merge tại PR #5**. C04-A triển khai runtime theo contract riêng, chưa được coi là merge/release cho tới khi A quyết định. Ngày: 17/11/2026.
 
 Contract chi tiết và có ưu tiên khi đọc: [architecture-contracts.v1](../contracts/architecture-contracts-v1.md). Đây là quyết định thiết kế, chưa phải hành vi runtime đã triển khai. B không cần review PR của A.
 
