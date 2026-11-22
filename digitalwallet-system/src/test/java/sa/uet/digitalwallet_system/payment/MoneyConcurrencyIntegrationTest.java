@@ -362,6 +362,7 @@ class MoneyConcurrencyIntegrationTest extends PaymentDatabaseHttpTestSupport {
             assertThat(response.statusCode()).isEqualTo(409);
             assertThat(JSON.readTree(response.body()).get("code").asText()).isEqualTo("RESOURCE_BUSY");
             assertThat(JSON.readTree(response.body()).get("retryable").asBoolean()).isTrue();
+            assertThat(JSON.readTree(response.body()).get("message").asText()).isEqualTo("Bank link is busy; retry after backoff");
             verifyNoInteractions(delayTarget); noEffects();
         } finally { release.countDown(); holder.get(20,TimeUnit.SECONDS); }
     }
@@ -388,6 +389,7 @@ class MoneyConcurrencyIntegrationTest extends PaymentDatabaseHttpTestSupport {
             var error=JSON.readTree(response.body());
             assertThat(error.get("code").asText()).isEqualTo("RESOURCE_BUSY");
             assertThat(error.get("retryable").asBoolean()).isTrue();
+            assertThat(error.get("message").asText()).isEqualTo("Bank link is busy; retry after backoff");
             assertThat(payment.isDone()).isFalse();
             assertThat(jdbc.queryForObject("SELECT status FROM linked_bank_accounts WHERE id=31",String.class)).isEqualTo("ACTIVE");
             noEffects(); verifyNoInteractions(delayTarget);
