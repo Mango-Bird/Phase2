@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Import;
@@ -81,6 +82,41 @@ class PaymentHttpValidationTest {
         }
         verifyNoInteractions(payments);
     }
+    @ParameterizedTest
+    @CsvSource({"topup,0", "topup,-1", "topup,-9223372036854775808",
+            "withdraw,0", "withdraw,-1", "withdraw,-9223372036854775808",
+            "transfer,0", "transfer,-1", "transfer,-9223372036854775808"})
+    void nonPositiveAmountHasTheSameCodeForEveryCommand(String operation, long amount) throws Exception {
+        String field = operation.equals("transfer") ? "\"targetWalletNumber\":\"TARGET\"" : "\"linkedBankAccountId\":31";
+        mvc.perform(post("/api/v1/transactions/"+operation).header("Authorization", token()).header("Idempotency-Key", "amount")
+                .contentType(MediaType.APPLICATION_JSON).content("{"+field+",\"amount\":"+amount+"}"))
+                .andExpect(status().isBadRequest()).andExpect(jsonPath("$.code").value("INVALID_AMOUNT"))
+                .andExpect(jsonPath("$.retryable").value(false)).andExpect(jsonPath("$.traceId").isNotEmpty())
+                .andExpect(jsonPath("$.errors.amount").isNotEmpty());
+        verifyNoInteractions(payments, wallets, history);
+    }
+
+    @ParameterizedTest @ValueSource(strings = {"topup", "withdraw", "transfer"})
+    void declaredOversizedBodyReturns413BeforeBusiness(String operation) throws Exception {
+        String field = operation.equals("transfer") ? "\"targetWalletNumber\":\"TARGET\"" : "\"linkedBankAccountId\":31";
+        String oversized = " ".repeat(16*1024)+"{"+field+",\"amount\":100}";
+        mvc.perform(post("/api/v1/transactions/"+operation).header("Authorization", token()).header("Idempotency-Key", "large")
+                .contentType(MediaType.APPLICATION_JSON).content(oversized))
+                .andExpect(status().is(413)).andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"))
+                .andExpect(jsonPath("$.retryable").value(false)).andExpect(jsonPath("$.traceId").isNotEmpty());
+        verifyNoInteractions(payments, wallets, history);
+    }
+
+    @Test void limitCountsUtf8BytesRatherThanJavaCharacters() throws Exception {
+        String body = "{\"linkedBankAccountId\":31,\"amount\":100,\"description\":\""+"é".repeat(9000)+"\"}";
+        org.assertj.core.api.Assertions.assertThat(body.length()).isLessThan(16*1024);
+        org.assertj.core.api.Assertions.assertThat(body.getBytes(java.nio.charset.StandardCharsets.UTF_8).length).isGreaterThan(16*1024);
+        mvc.perform(post("/api/v1/transactions/topup").header("Authorization", token()).header("Idempotency-Key", "utf8-limit")
+                .contentType(MediaType.APPLICATION_JSON).content(body.getBytes(java.nio.charset.StandardCharsets.UTF_8)))
+                .andExpect(status().is(413)).andExpect(jsonPath("$.code").value("PAYLOAD_TOO_LARGE"));
+        verifyNoInteractions(payments, wallets, history);
+    }
+
     @Test void validPayloadAndMaxLengthKeyReachApiWithAuthenticatedActor() throws Exception {
         when(payments.topup(eq(101L), eq("a".repeat(64)), any())).thenReturn(new PaymentReceipt(200, 1, "{\"status\":200}", "ref", false));
         mvc.perform(post("/api/v1/transactions/topup").header("Authorization", token()).header("Idempotency-Key", "a".repeat(64))

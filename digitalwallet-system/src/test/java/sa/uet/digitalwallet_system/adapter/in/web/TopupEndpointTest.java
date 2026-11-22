@@ -92,7 +92,8 @@ class TopupEndpointTest {
 
     @Test void missingAmountReturns400() throws Exception {
         request("{\"linkedBankAccountId\":501}", token()).andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.errors.amount").isNotEmpty());
+                .andExpect(jsonPath("$.errors.amount").isNotEmpty())
+                .andExpect(jsonPath("$.code").value("INVALID_REQUEST"));
         noBusinessCalls();
     }
 

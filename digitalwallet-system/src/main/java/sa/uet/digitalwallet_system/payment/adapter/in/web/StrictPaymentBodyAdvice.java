@@ -17,13 +17,17 @@ import java.util.Set;
 
 @ControllerAdvice(assignableTypes = TransactionController.class)
 public class StrictPaymentBodyAdvice extends RequestBodyAdviceAdapter {
+    public static final int MAX_BODY_BYTES = 16 * 1024;
     private final ObjectMapper json = new ObjectMapper().enable(JsonParser.Feature.STRICT_DUPLICATE_DETECTION);
     public boolean supports(MethodParameter method, Type type, Class<? extends HttpMessageConverter<?>> converter) {
         return Set.of("topup", "withdraw", "transfer").contains(method.getMethod().getName());
     }
     public HttpInputMessage beforeBodyRead(HttpInputMessage message, MethodParameter method, Type type,
                                            Class<? extends HttpMessageConverter<?>> converter) throws IOException {
-        byte[] bytes = message.getBody().readAllBytes();
+        if (message.getHeaders().getContentLength() > MAX_BODY_BYTES) throw tooLarge();
+        // Do not trust Content-Length: chunked/unknown or understated bodies must also stay bounded.
+        byte[] bytes = message.getBody().readNBytes(MAX_BODY_BYTES + 1);
+        if (bytes.length > MAX_BODY_BYTES) throw tooLarge();
         try (JsonParser parser = json.createParser(bytes)) {
             JsonNode root = json.readTree(parser);
             if (root == null || !root.isObject() || parser.nextToken() != null) throw invalid();
@@ -44,6 +48,9 @@ public class StrictPaymentBodyAdvice extends RequestBodyAdviceAdapter {
             public InputStream getBody() { return new ByteArrayInputStream(bytes); }
             public HttpHeaders getHeaders() { return message.getHeaders(); }
         };
+    }
+    private PaymentFailure tooLarge() {
+        return new PaymentFailure("PAYLOAD_TOO_LARGE", "Payment body must not exceed 16384 bytes", false);
     }
     private PaymentFailure invalid() { return new PaymentFailure("INVALID_REQUEST", "Invalid payment JSON", false); }
 }

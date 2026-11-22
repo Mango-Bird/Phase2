@@ -66,3 +66,16 @@ Chưa chạy k6 load/benchmark mới; không tuyên bố throughput/latency tăn
 Test HTTP `/v3/api-docs` bổ sung sau candidate b83deef đã phát hiện OpenAPI thiếu entry application/json cho raw String receipt, dù header required/maxLength đúng. Mapping và success @Content được khai báo media type tường minh. Regression trước sửa FAIL, sau sửa PASS cho cả ba commands, trỏ đúng PaymentSuccessResponse. Không thay money/hash/result/schema/transaction.
 
 Local full suite trước metadata fix: 184/184 PASS; focused runtime metadata mới: 1/1 PASS. Full CI head mới phải xác minh 185 tests (gồm test mới), không dùng 184 tests của head cũ làm kết luận candidate mới. Xem contract C04-A-r2 và CI evidence trong PR body.
+
+
+## 7. Review revision C04-A-r3 — body limit và INVALID_AMOUNT
+
+Base sửa `ab2e094`; findings discussion_r4657163843 / discussion_r4657163846. Contract chi tiết tại `../contracts/C04-A-r3.md`.
+
+- Trước sửa: 41 focused tests, 16 failures đúng các cases size/stream budget và amount 0/âm. GuardedStream chặn test reader nếu vượt budget để tái hiện an toàn, không tạo body lớn hoặc để test OOM.
+- Sau sửa: focused **41/41 PASS**; full `gradlew.bat build --no-daemon` **205/205 PASS**, 0 failures/errors/skipped. Python benchmark harness **18/18 PASS**.
+- Body cap 16,384 bytes; declared Content-Length lớn bị từ chối trước getBody. Unknown/understated header vẫn chỉ consume tối đa 16,385 bytes. Đúng limit vẫn pass và giữ nguyên bytes; UTF-8 byte count được kiểm tra riêng.
+- Mapping lỗi: 413/PAYLOAD_TOO_LARGE/retryable=false/traceId. Amount Min violations tại cả ba operations (0, -1, Long.MIN_VALUE) có code INVALID_AMOUNT; missing amount giữ INVALID_REQUEST. Messages/field errors cũ được giữ.
+- Bổ sung HTTP/1.1 chunked thực bằng BodyPublisher contentLength=-1, không Content-Length, ba operations (có request qua JVM phụ production). Sau 413 phải có 0 idempotency rows/transactions, balances không đổi.
+- Runtime OpenAPI test kiểm tra response 413 application/json/ErrorResponse ở cả ba operations.
+- Không sửa V1/V2, transaction/idempotency/financial writes hoặc CI/rulesets. Full build/head mới, CI XML và replies/resolve threads được ghi trên PR sau xác minh; không dùng CI 185 tests của candidate cũ làm evidence mới.

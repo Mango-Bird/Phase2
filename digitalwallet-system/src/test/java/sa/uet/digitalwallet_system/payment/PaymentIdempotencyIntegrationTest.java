@@ -239,6 +239,29 @@ class PaymentIdempotencyIntegrationTest {
         assertThat(replay.statusCode()).isEqualTo(200); assertThat(replay.body()).isEqualTo(saved); oneEffect(1100);
     }
 
+    @org.junit.jupiter.params.ParameterizedTest
+    @org.junit.jupiter.params.provider.ValueSource(strings = {"topup", "withdraw", "transfer"})
+    void chunkedRequestWithoutContentLengthIsLimitedBeforeAnyWrites(String operation) throws Exception {
+        String field = operation.equals("transfer") ? "\"targetWalletNumber\":\"TARGET\"" : "\"linkedBankAccountId\":31";
+        byte[] body = (" ".repeat(16*1024)+"{"+field+",\"amount\":100}").getBytes(StandardCharsets.UTF_8);
+        var publisher = HttpRequest.BodyPublishers.ofInputStream(() -> new java.io.ByteArrayInputStream(body));
+        assertThat(publisher.contentLength()).isEqualTo(-1);
+        int targetPort = operation.equals("withdraw") ? secondPort : port;
+        var request = HttpRequest.newBuilder(URI.create("http://localhost:"+targetPort+"/api/v1/transactions/"+operation))
+                .version(HttpClient.Version.HTTP_1_1).timeout(Duration.ofSeconds(15))
+                .header("Authorization", "Bearer "+token(101)).header("Idempotency-Key", "chunked-limit")
+                .header("Content-Type", "application/json").POST(publisher).build();
+        assertThat(request.headers().firstValue("Content-Length")).isEmpty();
+        var response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(413);
+        var error = JSON.readTree(response.body());
+        assertThat(error.get("code").asText()).isEqualTo("PAYLOAD_TOO_LARGE");
+        assertThat(error.get("retryable").asBoolean()).isFalse();
+        assertThat(error.get("traceId").asText()).isNotBlank();
+        assertThat(count("idempotency_requests")).isZero(); assertThat(count("transactions")).isZero();
+        assertThat(balance(11)).isEqualTo(1000); assertThat(balance(22)).isEqualTo(500);
+    }
+
     @Test void runtimeOpenApiRequiresKeyAndDescribesStoredJsonAsObject() throws Exception {
         var response = HTTP.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/v3/api-docs")).GET().build(), HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).isEqualTo(200);
@@ -253,6 +276,8 @@ class PaymentIdempotencyIntegrationTest {
             assertThat(key.path("schema").path("maxLength").asInt()).isEqualTo(64);
             assertThat(post.path("responses").path("200").path("content").path("application/json").path("schema").path("$ref").asText())
                     .endsWith("/PaymentSuccessResponse");
+            assertThat(post.path("responses").path("413").path("content").path("application/json").path("schema").path("$ref").asText())
+                    .endsWith("/ErrorResponse");
         }
     }
 

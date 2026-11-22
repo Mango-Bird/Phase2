@@ -42,6 +42,7 @@ public class GlobalExceptionHandler {
         };
         if (Set.of("IDEMPOTENCY_KEY_REUSED", "REQUEST_IN_PROGRESS").contains(ex.code() == null ? "" : ex.code()))
             status = HttpStatus.CONFLICT;
+        if ("PAYLOAD_TOO_LARGE".equals(ex.code())) status = HttpStatus.CONTENT_TOO_LARGE;
         var response = buildErrorResponse(status, ex.getMessage(), request.getRequestURI(), null);
         response.getBody().setCode(ex.code() != null ? ex.code() : switch (ex.kind()) {
             case INSUFFICIENT_BALANCE -> "INSUFFICIENT_BALANCE";
@@ -67,7 +68,12 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fieldErrors.put(error.getField(), error.getDefaultMessage());
         }
-        return buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation failed", request.getRequestURI(), fieldErrors);
+        var response = buildErrorResponse(HttpStatus.BAD_REQUEST, "Validation failed", request.getRequestURI(), fieldErrors);
+        // Keep field errors and existing messages, while aligning @Min with application amount validation.
+        boolean invalidAmount = ex.getBindingResult().getFieldErrors("amount").stream()
+                .anyMatch(error -> "Min".equals(error.getCode()));
+        if (invalidAmount) response.getBody().setCode("INVALID_AMOUNT");
+        return response;
     }
 
     @ExceptionHandler(Exception.class)

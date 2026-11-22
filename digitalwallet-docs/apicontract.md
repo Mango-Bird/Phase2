@@ -10,6 +10,7 @@ Phần còn lại của tài liệu và `swaggerAPI/api-docs.json` là snapshot 
 - Tạo key một lần cho mỗi ý định thanh toán. Timeout/mất response/500/REQUEST_IN_PROGRESS: retry **cùng key và payload**; không tạo key mới để dò kết quả.
 - Cùng actor/operation/key + cùng payload đã commit: 200 và nguyên success body đã lưu, kể cả timestamp. Khác payload: 409 `IDEMPOTENCY_KEY_REUSED`.
 - Claim đang bị giữ lock có thể trả 409 `REQUEST_IN_PROGRESS`, retryable=true, `Retry-After: 1`. Request thất bại rollback cả key, không cache business failure.
+- Body của ba command tối đa **16 KiB (16,384 bytes)**, kể cả chunked/không Content-Length và replay. Vượt ngưỡng trả 413 `PAYLOAD_TOO_LARGE`, retryable=false; amount 0/âm trả 400 `INVALID_AMOUNT`.
 - Ba command endpoints từ chối JSON unknown/duplicate fields và numeric coercion: amount phải là JSON integer dương trong long, không chuỗi/float/exponent. Description thiếu/null tương đương; empty khác null; giữ Unicode/whitespace hợp lệ.
 - Success envelope/data giữ shape hiện tại, kể cả null fields. Error giữ fields cũ và thêm `code`, `retryable`, `traceId`. Auth vẫn bắt buộc khi replay.
 
