@@ -1,13 +1,14 @@
 package sa.uet.digitalwallet_system.application.service;
 
 import org.junit.jupiter.api.Test;
+import sa.uet.digitalwallet_system.wallet.application.service.WalletService;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import sa.uet.digitalwallet_system.application.port.out.LoadWalletPort;
-import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
-import sa.uet.digitalwallet_system.domain.model.Wallet;
+import sa.uet.digitalwallet_system.wallet.application.port.out.LoadWalletPort;
+import sa.uet.digitalwallet_system.wallet.api.error.WalletNotFoundException;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -40,18 +41,18 @@ class WalletServiceTest {
 
         when(loadWalletPort.loadByUserId(1L)).thenReturn(Optional.of(wallet));
 
-        Wallet result = walletService.getWallet(1L);
+        sa.uet.digitalwallet_system.wallet.api.WalletView result = walletService.getOwnedWallet(1L);
 
         assertNotNull(result);
-        assertEquals(10L, result.getId());
-        assertEquals("123456789012", result.getWalletNumber());
-        assertEquals(500000L, result.getBalance());
+        assertEquals(10L, result.id());
+        assertEquals("123456789012", result.walletNumber());
+        assertEquals(500000L, result.balance());
     }
 
     @Test
     void getWallet_NotFound_ThrowsException() {
         when(loadWalletPort.loadByUserId(999L)).thenReturn(Optional.empty());
 
-        assertThrows(WalletNotFoundException.class, () -> walletService.getWallet(999L));
+        assertThrows(WalletNotFoundException.class, () -> walletService.getOwnedWallet(999L));
     }
 }

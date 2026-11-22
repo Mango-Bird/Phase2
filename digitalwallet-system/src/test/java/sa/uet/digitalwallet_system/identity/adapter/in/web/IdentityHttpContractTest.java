@@ -7,7 +7,7 @@ import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.identity.api.*;
 import sa.uet.digitalwallet_system.identity.api.error.InvalidCredentialsException;
 import sa.uet.digitalwallet_system.identity.api.error.DuplicateUserException;

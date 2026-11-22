@@ -1,7 +1,9 @@
 package sa.uet.digitalwallet_system.identity.api.error;
 
-public class DuplicateUserException extends RuntimeException {
+import sa.uet.digitalwallet_system.platform.api.error.ModuleFailure;
+
+public class DuplicateUserException extends ModuleFailure {
     public DuplicateUserException(String field) {
-        super("A user with this " + field + " already exists");
+        super(Kind.DUPLICATE_USER, "A user with this " + field + " already exists");
     }
 }

@@ -11,18 +11,21 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
 import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
-import sa.uet.digitalwallet_system.adapter.in.web.controller.TransactionController;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
-import sa.uet.digitalwallet_system.adapter.out.persistence.TransactionPersistenceAdapter;
-import sa.uet.digitalwallet_system.adapter.out.persistence.entity.TransactionJpaEntity;
-import sa.uet.digitalwallet_system.adapter.out.persistence.mapper.TransactionEntityMapper;
-import sa.uet.digitalwallet_system.adapter.out.persistence.repository.TransactionRepository;
+import sa.uet.digitalwallet_system.payment.adapter.in.web.controller.TransactionController;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.payment.adapter.out.persistence.TransactionPersistenceAdapter;
+import sa.uet.digitalwallet_system.payment.adapter.out.persistence.entity.TransactionJpaEntity;
+import sa.uet.digitalwallet_system.payment.adapter.out.persistence.mapper.TransactionEntityMapper;
+import sa.uet.digitalwallet_system.payment.adapter.out.persistence.repository.TransactionRepository;
 import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
-import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
-import sa.uet.digitalwallet_system.application.port.out.*;
-import sa.uet.digitalwallet_system.application.service.TransactionService;
-import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
-import sa.uet.digitalwallet_system.domain.model.*;
+import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
+import sa.uet.digitalwallet_system.banking.application.port.out.LoadLinkedBankPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.LoadWalletPort;
+import sa.uet.digitalwallet_system.wallet.application.port.out.SaveWalletPort;
+import sa.uet.digitalwallet_system.payment.application.service.TransactionService;
+import sa.uet.digitalwallet_system.wallet.api.error.WalletNotFoundException;
+import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -36,12 +39,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=get-transactions-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, TransactionPersistenceAdapter.class, GlobalExceptionHandler.class})
+        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, TransactionPersistenceAdapter.class, GlobalExceptionHandler.class})
 class GetTransactionsEndpointTest {
     private static final String PATH = "/api/v1/transactions";
     @Autowired WebApplicationContext context;
     @Autowired JwtTokenService tokenGenerator;
-    @MockitoBean GetWalletUseCase getWalletUseCase;
+    @MockitoBean WalletQueryApi getWalletUseCase;
     @MockitoBean LoadWalletPort loadWalletPort;
     @MockitoBean SaveWalletPort saveWalletPort;
     @MockitoBean LoadLinkedBankPort loadLinkedBankPort;
@@ -101,7 +104,7 @@ class GetTransactionsEndpointTest {
     }
 
     @Test void missingWalletReturns404WithoutQuery() throws Exception {
-        when(getWalletUseCase.getWallet(99L)).thenThrow(new WalletNotFoundException());
+        when(getWalletUseCase.getOwnedWallet(99L)).thenThrow(new WalletNotFoundException());
         request(token(99)).andExpect(status().isNotFound());
         verifyNoInteractions(repository, mapper);
     }
@@ -120,7 +123,7 @@ class GetTransactionsEndpointTest {
     private String token(long userId) { return tokenGenerator.issue(userId, "history-user-" + userId, "ROLE_USER").value(); }
 
     private void stubWallet(long userId, long walletId) {
-        when(getWalletUseCase.getWallet(userId)).thenReturn(Wallet.builder().id(walletId)
-                .userId(userId).walletNumber("WAL" + walletId).balance(0L).status("ACTIVE").build());
+        when(getWalletUseCase.getOwnedWallet(userId)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now()).id(walletId)
+                .userId(userId).walletNumber("WAL" + walletId).balance(0L).status("ACTIVE").build()));
     }
 }

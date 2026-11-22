@@ -20,16 +20,16 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
 import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
-import sa.uet.digitalwallet_system.adapter.in.web.controller.LinkedBankController;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.banking.adapter.in.web.controller.LinkedBankController;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
 import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
-import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
-import sa.uet.digitalwallet_system.application.port.out.LoadLinkedBankPort;
-import sa.uet.digitalwallet_system.application.port.out.SaveLinkedBankPort;
-import sa.uet.digitalwallet_system.application.service.LinkedBankService;
-import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
-import sa.uet.digitalwallet_system.domain.model.LinkedBankAccount;
-import sa.uet.digitalwallet_system.domain.model.Wallet;
+import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
+import sa.uet.digitalwallet_system.banking.application.port.out.LoadLinkedBankPort;
+import sa.uet.digitalwallet_system.banking.application.port.out.SaveLinkedBankPort;
+import sa.uet.digitalwallet_system.banking.application.service.LinkedBankService;
+import sa.uet.digitalwallet_system.wallet.api.error.WalletNotFoundException;
+import sa.uet.digitalwallet_system.banking.domain.model.LinkedBankAccount;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -73,7 +73,7 @@ class LinkBankEndpointTest {
     private JwtTokenService tokenGenerator;
 
     @MockitoBean
-    private GetWalletUseCase getWalletUseCase;
+    private WalletQueryApi getWalletUseCase;
 
     @MockitoBean
     private SaveLinkedBankPort saveLinkedBankPort;
@@ -117,7 +117,7 @@ class LinkBankEndpointTest {
                 .andExpect(content().string(not(containsString("0123456789"))));
 
         ArgumentCaptor<LinkedBankAccount> saved = ArgumentCaptor.forClass(LinkedBankAccount.class);
-        verify(getWalletUseCase).getWallet(USER_ID);
+        verify(getWalletUseCase).getOwnedWallet(USER_ID);
         verify(saveLinkedBankPort, times(1)).save(saved.capture());
         assertAll(
                 () -> assertEquals(WALLET_ID, saved.getValue().getWalletId()),
@@ -219,7 +219,7 @@ class LinkBankEndpointTest {
 
     @Test
     void missingWalletReturns404WithoutSavingBankAccount() throws Exception {
-        when(getWalletUseCase.getWallet(USER_ID)).thenThrow(new WalletNotFoundException());
+        when(getWalletUseCase.getOwnedWallet(USER_ID)).thenThrow(new WalletNotFoundException());
 
         postJson(validRequest())
                 .andExpect(status().isNotFound())
@@ -279,9 +279,9 @@ class LinkBankEndpointTest {
     }
 
     private void stubWallet() {
-        when(getWalletUseCase.getWallet(USER_ID)).thenReturn(Wallet.builder()
+        when(getWalletUseCase.getOwnedWallet(USER_ID)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now())
                 .id(WALLET_ID).userId(USER_ID).walletNumber("WAL0000000010")
-                .balance(0L).status("ACTIVE").build());
+                .balance(0L).status("ACTIVE").build()));
     }
 
     private void stubSuccessfulSave() {

@@ -42,4 +42,15 @@ class ArchitectureRuleProofTest {
         assertThatThrownBy(() -> ModuleArchitectureVerifier.verifyProduction(classes, policy))
                 .isInstanceOf(AssertionError.class).hasMessageContaining(expectedMessage);
     }
+
+    @Test void productionEngineRejectsBankingCallingWalletPostingEvenThroughPublicApi() {
+        assertRejected("architecture.fixtures.postingcaller", Set.of("wallet", "banking", "payment"),
+                Map.of("banking", Set.of("wallet"), "wallet", Set.of(), "payment", Set.of("wallet")),
+                "is not an allowed caller");
+    }
+
+    @Test void productionEngineRejectsReintroducedLegacyBusinessClassWithoutDependencies() {
+        assertRejected("architecture.fixtures.legacybusiness", Set.of("wallet"),
+                Map.of("wallet", Set.of()), "unmodularized legacy business type");
+    }
 }

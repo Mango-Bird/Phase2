@@ -14,18 +14,18 @@ import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
 import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
-import sa.uet.digitalwallet_system.adapter.in.web.controller.LinkedBankController;
-import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
-import sa.uet.digitalwallet_system.adapter.out.persistence.LinkedBankPersistenceAdapter;
-import sa.uet.digitalwallet_system.adapter.out.persistence.entity.LinkedBankAccountJpaEntity;
-import sa.uet.digitalwallet_system.adapter.out.persistence.mapper.LinkedBankAccountMapper;
-import sa.uet.digitalwallet_system.adapter.out.persistence.repository.LinkedBankAccountRepository;
+import sa.uet.digitalwallet_system.banking.adapter.in.web.controller.LinkedBankController;
+import sa.uet.digitalwallet_system.platform.adapter.web.handler.GlobalExceptionHandler;
+import sa.uet.digitalwallet_system.banking.adapter.out.persistence.LinkedBankPersistenceAdapter;
+import sa.uet.digitalwallet_system.banking.adapter.out.persistence.entity.LinkedBankAccountJpaEntity;
+import sa.uet.digitalwallet_system.banking.adapter.out.persistence.mapper.LinkedBankAccountMapper;
+import sa.uet.digitalwallet_system.banking.adapter.out.persistence.repository.LinkedBankAccountRepository;
 import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
-import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
-import sa.uet.digitalwallet_system.application.service.LinkedBankService;
-import sa.uet.digitalwallet_system.domain.exception.WalletNotFoundException;
-import sa.uet.digitalwallet_system.domain.model.LinkedBankAccount;
-import sa.uet.digitalwallet_system.domain.model.Wallet;
+import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
+import sa.uet.digitalwallet_system.banking.application.service.LinkedBankService;
+import sa.uet.digitalwallet_system.wallet.api.error.WalletNotFoundException;
+import sa.uet.digitalwallet_system.banking.domain.model.LinkedBankAccount;
+import sa.uet.digitalwallet_system.wallet.domain.model.Wallet;
 
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
@@ -57,7 +57,7 @@ class UnlinkBankEndpointTest {
 
     @Autowired private WebApplicationContext context;
     @Autowired private JwtTokenService tokenGenerator;
-    @MockitoBean private GetWalletUseCase getWalletUseCase;
+    @MockitoBean private WalletQueryApi getWalletUseCase;
     @MockitoBean private LinkedBankAccountRepository repository;
     @MockitoBean private LinkedBankAccountMapper mapper;
 
@@ -183,7 +183,7 @@ class UnlinkBankEndpointTest {
 
     @Test
     void missingWalletReturns404WithoutRepositoryAccess() throws Exception {
-        when(getWalletUseCase.getWallet(USER_ID)).thenThrow(new WalletNotFoundException());
+        when(getWalletUseCase.getOwnedWallet(USER_ID)).thenThrow(new WalletNotFoundException());
 
         unlinkWithToken(ENDPOINT, tokenFor(USER_ID))
                 .andExpect(status().isNotFound())
@@ -220,9 +220,9 @@ class UnlinkBankEndpointTest {
     }
 
     private void stubWallet(long userId, long walletId) {
-        when(getWalletUseCase.getWallet(userId)).thenReturn(Wallet.builder()
+        when(getWalletUseCase.getOwnedWallet(userId)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now())
                 .id(walletId).userId(userId).walletNumber("WAL" + walletId)
-                .balance(0L).status("ACTIVE").build());
+                .balance(0L).status("ACTIVE").build()));
     }
 
     private LinkedBankAccount bank(long walletId, String status) {
