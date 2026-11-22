@@ -96,7 +96,7 @@ class LinkBankEndpointTest {
     void validRequestReturns201AndLinksMaskedAccountToAuthenticatedWallet() throws Exception {
         stubWallet();
         stubSuccessfulSave();
-        LocalDateTime beforeRequest = LocalDateTime.now();
+        LocalDateTime beforeRequest = LocalDateTime.now(java.time.ZoneOffset.UTC);
 
         postJson(validRequest())
                 .andExpect(status().isCreated())
@@ -125,7 +125,7 @@ class LinkBankEndpointTest {
                 () -> assertEquals("ACTIVE", saved.getValue().getStatus()),
                 () -> assertNull(saved.getValue().getUnlinkedAt()),
                 () -> assertFalse(saved.getValue().getLinkedAt().isBefore(beforeRequest)),
-                () -> assertFalse(saved.getValue().getLinkedAt().isAfter(LocalDateTime.now()))
+                () -> assertFalse(saved.getValue().getLinkedAt().isAfter(LocalDateTime.now(java.time.ZoneOffset.UTC)))
         );
         verifyNoInteractions(loadLinkedBankPort);
     }
@@ -279,7 +279,7 @@ class LinkBankEndpointTest {
     }
 
     private void stubWallet() {
-        when(getWalletUseCase.getOwnedWallet(USER_ID)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now())
+        when(getWalletUseCase.getOwnedWallet(USER_ID)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)).updatedAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
                 .id(WALLET_ID).userId(USER_ID).walletNumber("WAL0000000010")
                 .balance(0L).status("ACTIVE").build()));
     }

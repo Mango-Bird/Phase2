@@ -10,6 +10,9 @@ public class TopupCommand {
     Long actorUserId;
 
     @NotNull
+    Long walletId;
+
+    @NotNull
     Long linkedBankAccountId;
 
     @NotNull @Min(1)

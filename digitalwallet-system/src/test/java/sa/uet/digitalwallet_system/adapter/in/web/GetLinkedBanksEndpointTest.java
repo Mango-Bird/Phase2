@@ -71,6 +71,7 @@ class GetLinkedBanksEndpointTest {
     @MockitoBean
     private LinkedBankAccountMapper mapper;
 
+    @MockitoBean jakarta.persistence.EntityManager entityManager;
     private MockMvc mockMvc;
 
     @BeforeEach

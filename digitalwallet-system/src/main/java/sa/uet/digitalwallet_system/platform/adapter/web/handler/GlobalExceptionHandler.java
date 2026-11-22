@@ -40,7 +40,7 @@ public class GlobalExceptionHandler {
             case DUPLICATE_USER -> HttpStatus.CONFLICT;
             case INVALID_CREDENTIALS -> HttpStatus.UNAUTHORIZED;
         };
-        if (Set.of("IDEMPOTENCY_KEY_REUSED", "REQUEST_IN_PROGRESS").contains(ex.code() == null ? "" : ex.code()))
+        if (Set.of("IDEMPOTENCY_KEY_REUSED", "REQUEST_IN_PROGRESS", "RESOURCE_BUSY", "CONCURRENT_UPDATE").contains(ex.code() == null ? "" : ex.code()))
             status = HttpStatus.CONFLICT;
         if ("PAYLOAD_TOO_LARGE".equals(ex.code())) status = HttpStatus.CONTENT_TOO_LARGE;
         var response = buildErrorResponse(status, ex.getMessage(), request.getRequestURI(), null);

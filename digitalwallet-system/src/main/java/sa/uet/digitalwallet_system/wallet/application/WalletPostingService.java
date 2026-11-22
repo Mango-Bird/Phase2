@@ -26,10 +26,12 @@ public class WalletPostingService implements WalletPostingApi {
                 .orElseThrow(() -> new WalletNotFoundException("Target wallet not found: " + walletNumber)));
     }
     public void applyBalanceChange(BalanceChange change) {
+        if (change.expectedBalance() < 0 || change.newBalance() < 0) throw new IllegalArgumentException("Wallet balances must be non-negative");
         Wallet wallet = loadWalletPort.loadById(change.walletId()).orElseThrow(WalletNotFoundException::new);
         if (wallet.getVersion() != change.expectedVersion() || wallet.getBalance() != change.expectedBalance()) {
             throw new OptimisticLockingFailureException("Wallet snapshot changed");
         }
+        if (!"ACTIVE".equals(wallet.getStatus())) throw new sa.uet.digitalwallet_system.wallet.api.error.WalletNotActiveException(wallet.getWalletNumber());
         saveWalletPort.save(wallet.withBalance(change.newBalance()).withUpdatedAt(LocalDateTime.now(ZoneOffset.UTC)));
     }
     private PostingWallet snapshot(Wallet wallet) {

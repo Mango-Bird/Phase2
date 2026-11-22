@@ -86,13 +86,15 @@ public class LinkedBankController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Unlink bank account", description = "Soft-deletes a linked bank account by setting status to UNLINKED")
+    @Operation(summary = "Unlink bank account", description = "Soft-deletes a linked bank account by setting status to UNLINKED. If a concurrent payment holds the bank lock, returns 409 RESOURCE_BUSY (retryable=true). Retry DELETE after backoff without an Idempotency-Key header.")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Bank account unlinked"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Linked bank account not found",
-                    content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "RESOURCE_BUSY: bank lock timeout; retryable=true. Retry DELETE after backoff without Idempotency-Key.",
+                    content = @Content(mediaType = "application/json", schema = @Schema(implementation = ErrorResponse.class)))
     })
     public ResponseEntity<ApiResponse<Void>> unlinkBank(
             @AuthenticationPrincipal Long userId,

@@ -24,6 +24,13 @@ curl -X POST 'http://localhost:8080/api/v1/transactions/topup' \
 
 Lặp lại nguyên lệnh với cùng key/payload để retry ý định đó. Muốn topup lần mới thì tạo key mới. GET history, bank APIs và auth không yêu cầu header này. C04 chưa hoàn thiện retry concurrency/unlink locking của C05.
 
+## Cập nhật C05-A — money/concurrency
+
+- Amount vẫn integer VND 1..Long.MAX_VALUE. Overflow balance trả 400 MONEY_OVERFLOW; không wrap hoặc ghi tiền trước khi báo lỗi. ACTIVE/ownership/insufficient vẫn là business failures, không server retry.
+- Optimistic conflict/MySQL deadlock xác định được retry tối đa 3 attempts tổng cộng, transaction mới mỗi lần. Hết budget trả 409 CONCURRENT_UPDATE/retryable=true; client giữ nguyên Idempotency-Key và payload.
+- Bank-link row được khóa chung giữa payment/unlink. Lock timeout trả 409 RESOURCE_BUSY/retryable=true, không retry ngầm. Claim-key timeout vẫn REQUEST_IN_PROGRESS/Retry-After:1 như C04.
+- Replay receipt đã commit vẫn trả nguyên body, không revalidate bank/wallet. Không có schema/HTTP body/path mới; không coi retry của server là lý do tạo key mới ở client.
+
 ## 1. Quy ước chung
 
 - Base path: `/api/v1`. Request có body dùng `Content-Type: application/json`.
@@ -73,7 +80,7 @@ Baseline hiện tại **không trả trường `success` hoặc `errorCode`** tr
 | `GET` | `/api/v1/wallets/me` | JWT | `200` | `401`, `404` |
 | `POST` | `/api/v1/linked-banks` | JWT | `201` | `400`, `401`, `404` |
 | `GET` | `/api/v1/linked-banks` | JWT | `200` | `401`, `404` |
-| `DELETE` | `/api/v1/linked-banks/{id}` | JWT | `200` | `401`, `404` |
+| `DELETE` | `/api/v1/linked-banks/{id}` | JWT | `200` | `401`, `404`, `409` |
 | `POST` | `/api/v1/transactions/topup` | JWT | `200` | `400`, `401`, `404` |
 | `POST` | `/api/v1/transactions/withdraw` | JWT | `200` | `400`, `401`, `404` |
 | `POST` | `/api/v1/transactions/transfer` | JWT | `200` | `400`, `401`, `404` |
@@ -159,6 +166,8 @@ Trả `200 OK` với `data` là **mảng `LinkedBankResponse`** của các liên
 ### `DELETE /api/v1/linked-banks/{id}`
 
 `id` là ID kiểu số nguyên của liên kết ngân hàng. Endpoint hủy liên kết bằng cách đổi trạng thái sang `UNLINKED`. Trả `200 OK` với message `Bank account unlinked successfully`; **không trả đối tượng liên kết đã cập nhật** trong `data`. ID không tồn tại hoặc không thuộc ví của người dùng trả `404` theo xử lý hiện tại.
+
+C05-A: unlink dùng chung row lock với payment. Nếu payment giữ lock quá session lock timeout, DELETE trả `409 Conflict` với schema `ErrorResponse`, `code=RESOURCE_BUSY`, `retryable=true`; lần unlink thất bại không đổi trạng thái liên kết. Client có thể backoff rồi retry cùng DELETE. **DELETE không yêu cầu và không dùng `Idempotency-Key`**; quy tắc giữ nguyên key của payment không áp dụng cho endpoint này. Payment đang giữ lock vẫn có thể commit; sau đó retry DELETE hủy liên kết bình thường.
 
 ## 5. Giao dịch
 

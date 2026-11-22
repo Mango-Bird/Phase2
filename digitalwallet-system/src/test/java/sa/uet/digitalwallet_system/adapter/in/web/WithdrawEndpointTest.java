@@ -44,7 +44,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
         sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
         sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
-        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankEligibilityService.class, GlobalExceptionHandler.class})
 class WithdrawEndpointTest {
     private static final String PATH = "/api/v1/transactions/withdraw";
     private static final String BODY = "{\"linkedBankAccountId\":501,\"amount\":250,\"description\":\"Rut tien\"}";
@@ -128,7 +128,7 @@ class WithdrawEndpointTest {
     @Test void foreignBankReturns404WithoutWrites() throws Exception {
         stub(1000, "ACTIVE", null);
         request(BODY, token()).andExpect(status().isNotFound());
-        verify(loadLinkedBankPort).loadByIdAndWalletId(501L, 10L);
+        verify(loadLinkedBankPort).lockByIdAndWalletId(501L, 10L);
         verifyNoInteractions(saveWalletPort, saveTransactionPort);
     }
 
@@ -152,7 +152,7 @@ class WithdrawEndpointTest {
         when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet));
         when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet));
-        when(loadLinkedBankPort.loadByIdAndWalletId(501L, 10L)).thenReturn(bankStatus == null
+        when(loadLinkedBankPort.lockByIdAndWalletId(501L, 10L)).thenReturn(bankStatus == null
                 ? Optional.empty() : Optional.of(LinkedBankAccount.builder()
                 .id(501L).walletId(10L).status(bankStatus).build()));
         when(saveTransactionPort.save(any(Transaction.class))).thenAnswer(call -> sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.saved(call.getArgument(0)));

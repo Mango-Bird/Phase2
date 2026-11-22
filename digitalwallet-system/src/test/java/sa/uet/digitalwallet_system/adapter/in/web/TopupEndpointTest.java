@@ -45,7 +45,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
         sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
         sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
-        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankEligibilityService.class, GlobalExceptionHandler.class})
 class TopupEndpointTest {
     private static final String PATH = "/api/v1/transactions/topup";
     private static final String BODY = "{\"linkedBankAccountId\":501,\"amount\":250,\"description\":\"Nap tien\"}";
@@ -81,7 +81,7 @@ class TopupEndpointTest {
         verify(saveTransactionPort).save(tx.capture());
         assertEquals("TOPUP", tx.getValue().getType());
         assertEquals(250L, tx.getValue().getAmount());
-        verify(loadLinkedBankPort).loadByIdAndWalletId(501L, 10L);
+        verify(loadLinkedBankPort).lockByIdAndWalletId(501L, 10L);
     }
 
     @Test void missingBankIdReturns400() throws Exception {
@@ -135,16 +135,17 @@ class TopupEndpointTest {
     @Test void inactiveWalletReturns400WithoutWrites() throws Exception {
         when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet("INACTIVE")));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet("INACTIVE")));
+        when(loadLinkedBankPort.lockByIdAndWalletId(501L,10L)).thenReturn(Optional.of(LinkedBankAccount.builder().id(501L).walletId(10L).status("ACTIVE").build()));
         when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet("INACTIVE")));
         request(BODY, token()).andExpect(status().isBadRequest());
-        verifyNoInteractions(saveWalletPort, loadLinkedBankPort, saveTransactionPort);
+        verifyNoInteractions(saveWalletPort, saveTransactionPort);
     }
 
     @Test void foreignBankReturns404WithoutWrites() throws Exception {
         when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet("ACTIVE")));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet("ACTIVE")));
         when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet("ACTIVE")));
-        when(loadLinkedBankPort.loadByIdAndWalletId(501L, 10L)).thenReturn(Optional.empty());
+        when(loadLinkedBankPort.lockByIdAndWalletId(501L, 10L)).thenReturn(Optional.empty());
         request(BODY, token()).andExpect(status().isNotFound());
         verifyNoInteractions(saveWalletPort, saveTransactionPort);
     }
@@ -174,7 +175,7 @@ class TopupEndpointTest {
         when(getWalletUseCase.getOwnedWallet(99L)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(wallet(walletStatus)));
         when(loadWalletPort.loadById(10L)).thenReturn(Optional.of(wallet(walletStatus)));
         when(loadWalletPort.loadByUserId(99L)).thenReturn(Optional.of(wallet(walletStatus)));
-        when(loadLinkedBankPort.loadByIdAndWalletId(501L, 10L)).thenReturn(Optional.of(
+        when(loadLinkedBankPort.lockByIdAndWalletId(501L, 10L)).thenReturn(Optional.of(
                 LinkedBankAccount.builder().id(501L).walletId(10L).status(bankStatus).build()));
         when(saveTransactionPort.save(any(Transaction.class)))
                 .thenAnswer(call -> sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.saved(call.getArgument(0)));

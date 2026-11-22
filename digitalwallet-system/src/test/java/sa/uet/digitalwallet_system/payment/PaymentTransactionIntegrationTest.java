@@ -98,10 +98,10 @@ class PaymentTransactionIntegrationTest {
     }
 
     @Test void bankOwnershipIsEnforcedAcrossModuleBoundary() {
-        assertThatThrownBy(() -> topups.topup(new TopupCommand(101L, 32L, 100L, null)))
+        assertThatThrownBy(() -> topups.topup(new TopupCommand(101L, 11L, 32L, 100L, null)))
                 .hasMessage("Linked bank account not found");
         jdbc.update("UPDATE linked_bank_accounts SET status='UNLINKED', unlinked_at=NOW() WHERE id=31");
-        assertThatThrownBy(() -> withdrawals.withdraw(new WithdrawCommand(101L, 31L, 100L, null)))
+        assertThatThrownBy(() -> withdrawals.withdraw(new WithdrawCommand(101L, 11L, 31L, 100L, null)))
                 .hasMessage("Linked bank account is not active");
         assertThat(balance(11)).isEqualTo(1000);
         assertThat(countHistory()).isZero();
