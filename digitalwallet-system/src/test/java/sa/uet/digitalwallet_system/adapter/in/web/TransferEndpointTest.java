@@ -10,11 +10,11 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
-import sa.uet.digitalwallet_system.adapter.in.security.JwtAuthenticationFilter;
-import sa.uet.digitalwallet_system.adapter.in.security.SecurityConfig;
+import sa.uet.digitalwallet_system.platform.security.JwtAuthenticationFilter;
+import sa.uet.digitalwallet_system.platform.security.SecurityConfig;
 import sa.uet.digitalwallet_system.adapter.in.web.controller.TransactionController;
 import sa.uet.digitalwallet_system.adapter.in.web.handler.GlobalExceptionHandler;
-import sa.uet.digitalwallet_system.adapter.out.security.JwtTokenGenerator;
+import sa.uet.digitalwallet_system.platform.security.JwtTokenService;
 import sa.uet.digitalwallet_system.application.port.in.GetWalletUseCase;
 import sa.uet.digitalwallet_system.application.port.out.*;
 import sa.uet.digitalwallet_system.application.service.TransactionService;
@@ -32,13 +32,13 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @WebMvcTest(controllers = TransactionController.class, properties = {
         "app.jwt.secret=transfer-endpoint-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
-@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenGenerator.class,
+@Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
         TransactionService.class, GlobalExceptionHandler.class})
 class TransferEndpointTest {
     private static final String PATH = "/api/v1/transactions/transfer";
     private static final String BODY = "{\"targetWalletNumber\":\"WAL20\",\"amount\":250,\"description\":\"Chuyen tien\"}";
     @Autowired WebApplicationContext context;
-    @Autowired JwtTokenGenerator tokenGenerator;
+    @Autowired JwtTokenService tokenGenerator;
     @MockitoBean GetWalletUseCase getWalletUseCase;
     @MockitoBean LoadWalletPort loadWalletPort;
     @MockitoBean SaveWalletPort saveWalletPort;
@@ -134,8 +134,7 @@ class TransferEndpointTest {
                 .header("Authorization", "Bearer " + jwt).content(body));
     }
 
-    private String token() { return tokenGenerator.generateToken(User.builder().id(99L)
-            .username("transfer-user").role("ROLE_USER").build()); }
+    private String token() { return tokenGenerator.issue(99L, "transfer-user", "ROLE_USER").value(); }
 
     private Wallet wallet(long id, long balance, String status) {
         return Wallet.builder().id(id).userId(id == 10 ? 99L : 100L).walletNumber("WAL" + id)
