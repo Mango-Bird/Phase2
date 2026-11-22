@@ -22,6 +22,13 @@ cd D:\SAUETDigitalWallet
 - Case A↔B HTTP qua hai JVM mới bổ sung: **1/1 PASS**. Production code không đổi sau full build; CI head cuối phải xác minh tổng **248 tests**.
 - Benchmark harness: **18/18 PASS**. Không chạy benchmark k6 mới, không tuyên bố throughput/latency tăng.
 
+### Review fix — DELETE unlink timeout contract
+
+- Bổ sung runtime OpenAPI `409` với `application/json` / `ErrorResponse`, mô tả `RESOURCE_BUSY`, `retryable=true` và retry DELETE sau backoff **không dùng Idempotency-Key**; cập nhật bảng endpoint và contract nghiệm thu.
+- `unlinkHttpTimeoutWhilePaymentHoldsBankLockCanBeRetriedWithoutKey`: payment giữ bank row lock trong transaction thật; DELETE qua JVM thứ hai timeout trả 409 đúng code/retryable. Khi lock còn giữ, liên kết vẫn ACTIVE, balances/versions/history/key chưa có committed effects. Sau release payment commit đúng một effect; retry chính DELETE không key trả 200/UNLINKED, không thêm payment effect.
+- `runtimeOpenApiDeclaresUnlinkResourceBusyAndNoIdempotencyKey`: đọc `/v3/api-docs` thật, kiểm tra JSON ErrorResponse, mô tả retry và không có key parameter.
+- Lệnh `./gradlew.bat test --tests '*MoneyConcurrencyIntegrationTest' --no-daemon`: **23 tests, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESSFUL. CI head sửa phải xác minh toàn bộ **250 tests**; SHA/run URLs và kết quả cuối được ghi trong PR body.
+
 ## 2. QA02 — money/range/atomicity
 
 - MoneyRules tests xác minh null/0/âm bị chặn, 0→MAX và MAX→0 đúng, debit thiếu tiền không âm, credit overflow không wrap. Direct use-case tests kiểm tra độc lập với HTTP/facade, stale resolved wallet ID và overflow trước bất kỳ debit.

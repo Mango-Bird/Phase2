@@ -368,4 +368,45 @@ class MoneyConcurrencyIntegrationTest extends PaymentDatabaseHttpTestSupport {
     @Test void bankPostingApiRequiresTheCallerTransaction() {
         assertThatThrownBy(() -> eligibility.requireActiveForPosting(31,11)).isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
     }
+
+    @Test void unlinkHttpTimeoutWhilePaymentHoldsBankLockCanBeRetriedWithoutKey() throws Exception {
+        var entered=new CountDownLatch(1); var release=new CountDownLatch(1);
+        doAnswer(call -> {
+            var row=call.callRealMethod();
+            entered.countDown();
+            if(!release.await(20,TimeUnit.SECONDS)) throw new IllegalStateException("payment bank latch timeout");
+            return row;
+        }).when(bankTarget).lockByIdAndWalletId(31L,11L);
+        var payment=CompletableFuture.supplyAsync(() -> api.topup(101,"unlink-http-timeout",new TopupInput(31,100,null)));
+        var request=java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:"+secondPort+"/api/v1/linked-banks/31"))
+                .timeout(java.time.Duration.ofSeconds(15)).header("Authorization","Bearer "+token(101)).DELETE().build();
+        assertThat(request.headers().firstValue("Idempotency-Key")).isEmpty();
+        try {
+            assertThat(entered.await(10,TimeUnit.SECONDS)).isTrue();
+            var response=HTTP.send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
+            assertThat(response.statusCode()).isEqualTo(409);
+            var error=JSON.readTree(response.body());
+            assertThat(error.get("code").asText()).isEqualTo("RESOURCE_BUSY");
+            assertThat(error.get("retryable").asBoolean()).isTrue();
+            assertThat(payment.isDone()).isFalse();
+            assertThat(jdbc.queryForObject("SELECT status FROM linked_bank_accounts WHERE id=31",String.class)).isEqualTo("ACTIVE");
+            noEffects(); verifyNoInteractions(delayTarget);
+        } finally { release.countDown(); payment.get(20,TimeUnit.SECONDS); }
+        oneEffect(1100);
+        var retried=HTTP.send(request,java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertThat(retried.statusCode()).isEqualTo(200);
+        assertThat(jdbc.queryForObject("SELECT status FROM linked_bank_accounts WHERE id=31",String.class)).isEqualTo("UNLINKED");
+        oneEffect(1100);
+    }
+
+    @Test void runtimeOpenApiDeclaresUnlinkResourceBusyAndNoIdempotencyKey() throws Exception {
+        var response=HTTP.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:"+port+"/v3/api-docs")).GET().build(),java.net.http.HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        var delete=JSON.readTree(response.body()).path("paths").path("/api/v1/linked-banks/{id}").path("delete");
+        var busy=delete.path("responses").path("409");
+        assertThat(busy.path("content").path("application/json").path("schema").path("$ref").asText()).endsWith("/ErrorResponse");
+        assertThat(busy.path("description").asText()).contains("RESOURCE_BUSY","retryable=true","without Idempotency-Key");
+        assertThat(delete.path("description").asText()).contains("Retry DELETE after backoff without an Idempotency-Key");
+        for(var parameter:delete.path("parameters")) assertThat(parameter.path("name").asText()).isNotEqualTo("Idempotency-Key");
+    }
 }
