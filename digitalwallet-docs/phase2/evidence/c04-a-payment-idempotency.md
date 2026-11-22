@@ -59,3 +59,10 @@ Required check giữ nguyên **Backend build and test**. CI chạy clean build t
 Local chạy build để giữ review worktrees cũ nằm trong build; không xóa các worktree đó. Child JVM/probe/log test nằm trong ignored build directory; artifact upload không bao gồm classpath/argument files này.
 
 Chưa chạy k6 load/benchmark mới; không tuyên bố throughput/latency tăng. Raw/evidence C00 giữ nguyên. C05 sở hữu exact arithmetic, retry/lock order, distinct-payment concurrency và unlink race; C06 sở hữu outbox. Không drop receipts/keys khi rollback; chuyển từ C03 cần drain toàn bộ old writers theo contract C04-A-r1.
+
+
+## 6. Revision C04-A-r2 — runtime OpenAPI
+
+Test HTTP `/v3/api-docs` bổ sung sau candidate b83deef đã phát hiện OpenAPI thiếu entry application/json cho raw String receipt, dù header required/maxLength đúng. Mapping và success @Content được khai báo media type tường minh. Regression trước sửa FAIL, sau sửa PASS cho cả ba commands, trỏ đúng PaymentSuccessResponse. Không thay money/hash/result/schema/transaction.
+
+Local full suite trước metadata fix: 184/184 PASS; focused runtime metadata mới: 1/1 PASS. Full CI head mới phải xác minh 185 tests (gồm test mới), không dùng 184 tests của head cũ làm kết luận candidate mới. Xem contract C04-A-r2 và CI evidence trong PR body.

@@ -40,10 +40,10 @@ public class TransactionController {
     private final PaymentCommandApi payments;
     private final GetTransactionsUseCase getTransactionsUseCase;
 
-    @PostMapping("/topup")
+    @PostMapping(value = "/topup", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Topup wallet", description = "Transfers money from linked bank account to wallet")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Topup successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Topup successful", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PaymentSuccessResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active",
@@ -64,10 +64,10 @@ public class TransactionController {
         return ResponseEntity.status(receipt.httpStatus()).contentType(MediaType.APPLICATION_JSON).body(receipt.successBody());
     }
 
-    @PostMapping("/withdraw")
+    @PostMapping(value = "/withdraw", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Withdraw money", description = "Transfers money from wallet to linked bank account")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Withdraw successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Withdraw successful", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PaymentSuccessResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active / Insufficient balance",
@@ -88,10 +88,10 @@ public class TransactionController {
         return ResponseEntity.status(receipt.httpStatus()).contentType(MediaType.APPLICATION_JSON).body(receipt.successBody());
     }
 
-    @PostMapping("/transfer")
+    @PostMapping(value = "/transfer", produces = MediaType.APPLICATION_JSON_VALUE)
     @Operation(summary = "Transfer money", description = "Transfers money from caller's wallet to another wallet by wallet number")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transfer successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transfer successful", content = @Content(mediaType = MediaType.APPLICATION_JSON_VALUE, schema = @Schema(implementation = PaymentSuccessResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active / Insufficient balance",

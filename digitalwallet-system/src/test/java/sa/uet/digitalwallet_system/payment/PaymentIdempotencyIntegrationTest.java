@@ -239,6 +239,23 @@ class PaymentIdempotencyIntegrationTest {
         assertThat(replay.statusCode()).isEqualTo(200); assertThat(replay.body()).isEqualTo(saved); oneEffect(1100);
     }
 
+    @Test void runtimeOpenApiRequiresKeyAndDescribesStoredJsonAsObject() throws Exception {
+        var response = HTTP.send(HttpRequest.newBuilder(URI.create("http://localhost:"+port+"/v3/api-docs")).GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(response.statusCode()).isEqualTo(200);
+        var document = JSON.readTree(response.body());
+        for (String operation : List.of("topup", "withdraw", "transfer")) {
+            var post = document.path("paths").path("/api/v1/transactions/"+operation).path("post");
+            com.fasterxml.jackson.databind.JsonNode key = null;
+            for (var parameter : post.path("parameters")) if (parameter.path("name").asText().equals("Idempotency-Key")) key = parameter;
+            assertThat(key).as(operation+" key parameter").isNotNull();
+            assertThat(key.path("in").asText()).isEqualTo("header");
+            assertThat(key.path("required").asBoolean()).isTrue();
+            assertThat(key.path("schema").path("maxLength").asInt()).isEqualTo(64);
+            assertThat(post.path("responses").path("200").path("content").path("application/json").path("schema").path("$ref").asText())
+                    .endsWith("/PaymentSuccessResponse");
+        }
+    }
+
     @Test void publicFacadeRejectsCallerTransactionAndCreationOfDurableProcessingRowsIsNotUsed() {
         assertThatThrownBy(() -> transaction.executeWithoutResult(status -> api.topup(101,"nested",new TopupInput(31,100,null))))
                 .isInstanceOf(org.springframework.transaction.IllegalTransactionStateException.class);
