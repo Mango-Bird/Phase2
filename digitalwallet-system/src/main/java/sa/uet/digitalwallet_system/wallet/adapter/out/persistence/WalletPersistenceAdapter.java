@@ -39,7 +39,7 @@ public class WalletPersistenceAdapter implements LoadWalletPort, SaveWalletPort 
     @Override
     public Wallet save(Wallet wallet) {
         WalletJpaEntity entity = walletMapper.toEntity(wallet);
-        WalletJpaEntity saved = walletRepository.save(entity);
+        WalletJpaEntity saved = walletRepository.saveAndFlush(entity);
         return walletMapper.toDomain(saved);
     }
 }

@@ -17,7 +17,8 @@ import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
 import java.time.LocalDateTime;
 import sa.uet.digitalwallet_system.wallet.api.*;
 import sa.uet.digitalwallet_system.wallet.api.error.*;
-import sa.uet.digitalwallet_system.banking.api.BankAccountQueryApi;
+import sa.uet.digitalwallet_system.banking.api.BankEligibilityApi;
+import sa.uet.digitalwallet_system.payment.domain.MoneyRules;
 import java.util.List;
 import java.util.UUID;
 
@@ -26,24 +27,25 @@ import java.util.UUID;
 public class TransactionService implements TopupUseCase, WithdrawUseCase, TransferUseCase, GetTransactionsUseCase {
 
     private final WalletPostingApi walletPosting;
-    private final BankAccountQueryApi bankAccounts;
+    private final BankEligibilityApi bankAccounts;
     private final SaveTransactionPort saveTransactionPort;
     private final LoadTransactionPort loadTransactionPort;
 
     @Override
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Transaction topup(TopupCommand command) {
+        long amount = MoneyRules.positive(command.getAmount());
+        bankAccounts.requireActiveForPosting(command.getLinkedBankAccountId(), command.getWalletId());
         PostingWallet wallet = walletPosting.loadOwnedForPosting(command.getActorUserId());
+        if (wallet.id() != command.getWalletId()) throw new WalletNotFoundException();
 
         if (!"ACTIVE".equals(wallet.status())) {
             throw new WalletNotActiveException(wallet.walletNumber());
         }
 
-        // Verify bank account belongs to user's wallet
-        bankAccounts.requireActiveAccount(command.getLinkedBankAccountId(), wallet.id());
 
         // Credit wallet
-        walletPosting.applyBalanceChange(new BalanceChange(wallet.id(), wallet.version(), wallet.balance(), wallet.balance() + command.getAmount()));
+        walletPosting.applyBalanceChange(new BalanceChange(wallet.id(), wallet.version(), wallet.balance(), MoneyRules.credit(wallet.balance(), amount)));
 
         // Append ledger entry
         Transaction tx = Transaction.builder()
@@ -61,9 +63,12 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Transaction withdraw(WithdrawCommand command) {
+        long amount = MoneyRules.positive(command.getAmount());
+        bankAccounts.requireActiveForPosting(command.getLinkedBankAccountId(), command.getWalletId());
         PostingWallet wallet = walletPosting.loadOwnedForPosting(command.getActorUserId());
+        if (wallet.id() != command.getWalletId()) throw new WalletNotFoundException();
 
         if (!"ACTIVE".equals(wallet.status())) {
             throw new WalletNotActiveException(wallet.walletNumber());
@@ -72,11 +77,9 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
             throw new InsufficientBalanceException();
         }
 
-        // Verify bank account belongs to user's wallet
-        bankAccounts.requireActiveAccount(command.getLinkedBankAccountId(), wallet.id());
 
         // Debit wallet
-        walletPosting.applyBalanceChange(new BalanceChange(wallet.id(), wallet.version(), wallet.balance(), wallet.balance() - command.getAmount()));
+        walletPosting.applyBalanceChange(new BalanceChange(wallet.id(), wallet.version(), wallet.balance(), MoneyRules.debit(wallet.balance(), amount)));
 
         Transaction tx = Transaction.builder()
                 .referenceCode(UUID.randomUUID().toString())
@@ -93,8 +96,9 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public Transaction transfer(TransferCommand command) {
+        long amount = MoneyRules.positive(command.getAmount());
         PostingWallet source = walletPosting.loadOwnedForPosting(command.getActorUserId());
         PostingWallet target = walletPosting.loadTargetForPosting(command.getTargetWalletNumber());
 
@@ -113,9 +117,13 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
 
         LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
 
-        // Atomic debit source, credit target
-        walletPosting.applyBalanceChange(new BalanceChange(source.id(), source.version(), source.balance(), source.balance() - command.getAmount()));
-        walletPosting.applyBalanceChange(new BalanceChange(target.id(), target.version(), target.balance(), target.balance() + command.getAmount()));
+        long debited = MoneyRules.debit(source.balance(), amount);
+        long credited = MoneyRules.credit(target.balance(), amount);
+        // Flush each owner write in ascending ID order; both roll back if either write or later stage fails.
+        List.of(new BalanceChange(source.id(), source.version(), source.balance(), debited),
+                        new BalanceChange(target.id(), target.version(), target.balance(), credited))
+                .stream().sorted(java.util.Comparator.comparingLong(BalanceChange::walletId))
+                .forEach(walletPosting::applyBalanceChange);
 
         Transaction tx = Transaction.builder()
                 .referenceCode(UUID.randomUUID().toString())

@@ -10,7 +10,6 @@ import org.springframework.transaction.annotation.Transactional;
 import sa.uet.digitalwallet_system.payment.api.PaymentOperation;
 import sa.uet.digitalwallet_system.payment.api.error.PaymentFailure;
 import sa.uet.digitalwallet_system.payment.application.port.out.*;
-import java.sql.SQLException;
 import java.util.Optional;
 
 @Repository
@@ -24,10 +23,8 @@ public class JdbcIdempotencyStore implements IdempotencyStore {
                     actor, operation.name(), key, hash);
         } catch (DuplicateKeyException duplicate) { throw new ClaimConflict(duplicate); }
         catch (DataAccessException ex) {
-            for (Throwable cause = ex; cause != null; cause = cause.getCause()) {
-                if (cause instanceof SQLException sql && sql.getErrorCode() == 1205)
-                    throw new PaymentFailure("REQUEST_IN_PROGRESS", "Request is in progress; retry with the same key", true);
-            }
+            if (sa.uet.digitalwallet_system.platform.api.error.SqlFailures.isMySqlLockTimeout(ex))
+                throw new PaymentFailure("REQUEST_IN_PROGRESS", "Request is in progress; retry with the same key", true);
             throw ex;
         }
     }

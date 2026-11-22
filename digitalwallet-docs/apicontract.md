@@ -24,6 +24,13 @@ curl -X POST 'http://localhost:8080/api/v1/transactions/topup' \
 
 Lặp lại nguyên lệnh với cùng key/payload để retry ý định đó. Muốn topup lần mới thì tạo key mới. GET history, bank APIs và auth không yêu cầu header này. C04 chưa hoàn thiện retry concurrency/unlink locking của C05.
 
+## Cập nhật C05-A — money/concurrency
+
+- Amount vẫn integer VND 1..Long.MAX_VALUE. Overflow balance trả 400 MONEY_OVERFLOW; không wrap hoặc ghi tiền trước khi báo lỗi. ACTIVE/ownership/insufficient vẫn là business failures, không server retry.
+- Optimistic conflict/MySQL deadlock xác định được retry tối đa 3 attempts tổng cộng, transaction mới mỗi lần. Hết budget trả 409 CONCURRENT_UPDATE/retryable=true; client giữ nguyên Idempotency-Key và payload.
+- Bank-link row được khóa chung giữa payment/unlink. Lock timeout trả 409 RESOURCE_BUSY/retryable=true, không retry ngầm. Claim-key timeout vẫn REQUEST_IN_PROGRESS/Retry-After:1 như C04.
+- Replay receipt đã commit vẫn trả nguyên body, không revalidate bank/wallet. Không có schema/HTTP body/path mới; không coi retry của server là lý do tạo key mới ở client.
+
 ## 1. Quy ước chung
 
 - Base path: `/api/v1`. Request có body dùng `Content-Type: application/json`.

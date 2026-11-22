@@ -18,12 +18,12 @@ public class PaymentExecutor {
     private final PaymentEncodingPort encoding;
     private final PaymentFlushPort flush;
 
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public PaymentReceipt execute(PaymentIntent intent, String key, String hash) {
         store.claim(intent.actorId(), intent.operation(), key, hash);
         Transaction tx = switch (intent.operation()) {
-            case TOPUP -> topups.topup(new TopupCommand(intent.actorId(), intent.linkedBankId(), intent.amount(), intent.description()));
-            case WITHDRAW -> withdrawals.withdraw(new WithdrawCommand(intent.actorId(), intent.linkedBankId(), intent.amount(), intent.description()));
+            case TOPUP -> topups.topup(new TopupCommand(intent.actorId(), intent.walletId(), intent.linkedBankId(), intent.amount(), intent.description()));
+            case WITHDRAW -> withdrawals.withdraw(new WithdrawCommand(intent.actorId(), intent.walletId(), intent.linkedBankId(), intent.amount(), intent.description()));
             case TRANSFER -> transfers.transfer(new TransferCommand(intent.actorId(), intent.targetWalletNumber(), intent.amount(), intent.description()));
         };
         String body = encoding.successSnapshot(tx);

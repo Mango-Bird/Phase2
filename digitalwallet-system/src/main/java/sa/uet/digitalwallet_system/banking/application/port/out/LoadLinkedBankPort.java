@@ -7,6 +7,6 @@ import java.util.Optional;
 
 public interface LoadLinkedBankPort {
     List<LinkedBankAccount> loadActiveByWalletId(Long walletId);
-    Optional<LinkedBankAccount> loadByIdAndWalletId(Long id, Long walletId);
+    Optional<LinkedBankAccount> lockByIdAndWalletId(Long id, Long walletId);
     Optional<LinkedBankAccount> loadById(Long id);
 }

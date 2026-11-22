@@ -11,6 +11,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Only WebMvc slices: JDBC atomicity is tested separately against MySQL, not simulated here. */
 @TestConfiguration
 public class PaymentMvcStorageConfiguration {
+    @Bean PaymentRetryDelayPort retryDelay() { return attempt -> {}; }
     @Bean PaymentFlushPort flush() { return () -> {}; }
     @Bean IdempotencyStore store() {
         return new IdempotencyStore() {

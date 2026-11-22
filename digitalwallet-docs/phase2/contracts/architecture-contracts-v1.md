@@ -42,17 +42,23 @@ Database FK được phép trỏ sang bảng module khác; không đồng nghĩa
 
 C03-A đóng giai đoạn chuyển tiếp: `WalletCreationService` dùng persistence thuộc Wallet; không còn `wallet.adapter.legacy` hoặc business packages `application/domain/adapter` ở root. Hai exception maps của architecture policy rỗng. Web handler nằm trong Platform và chỉ nhận `platform.api.error.ModuleFailure`; Identity/Wallet/Banking publish lỗi kế thừa contract này, nên Platform không phụ thuộc ngược các module nghiệp vụ.
 
-Architecture gate kiểm tra cả production graph, cấm tái đưa business class về root hoặc package ngoài module bất kỳ dù class chưa có dependency. Revision C03-A-r2 chỉ chấp nhận ngoài module đúng entry point `DigitalwalletSystemApplication` và namespaces hạ tầng `bootstrap`/`migration`; có negative fixtures tại root và service, positive fixtures cho hạ tầng hợp lệ. Chỉ Payment được dùng `WalletPostingApi` và seam đọc `BankAccountQueryApi`; owner được implement chính API của mình. Chỉ Onboarding ngoài owner được dùng hai creation APIs. Negative fixtures chạy chung rule engine để chứng minh các giới hạn này.
+Architecture gate kiểm tra cả production graph, cấm tái đưa business class về root hoặc package ngoài module bất kỳ dù class chưa có dependency. Revision C03-A-r2 chỉ chấp nhận ngoài module đúng entry point `DigitalwalletSystemApplication` và namespaces hạ tầng `bootstrap`/`migration`; có negative fixtures tại root và service, positive fixtures cho hạ tầng hợp lệ. Chỉ Payment được dùng `WalletPostingApi` và `BankEligibilityApi`; owner được implement chính API của mình. Chỉ Onboarding ngoài owner được dùng hai creation APIs. Negative fixtures chạy chung rule engine để chứng minh các giới hạn này.
 
 ### 2.2. Revision C03-A-r1 — triển khai theo từng task
 
 Các chữ ký ở mục 3 là đích toàn Phase 2. C03-A triển khai `WalletQueryApi`, `WalletPostingApi`, native `WalletCreationApi` và immutable records `PostingWallet/BalanceChange`; không thay HTTP. `BalanceChange(walletId, expectedVersion, expectedBalance, newBalance)` dùng số dư tuyệt đối từ snapshot; owner reload, kiểm tra snapshot rồi ghi bằng JPA `@Version`, trong transaction bắt buộc của Payment. Một lần gọi không tự commit, không retry.
 
-Banking hiện publish `BankAccountQueryApi.requireActiveAccount(linkedBankId,walletId)` để kiểm tra sở hữu/trạng thái trong transaction Payment. API này **chưa khóa bank row**, không được diễn giải thành guarantee chống race unlink/payment. `BankEligibilityApi` với locking semantics được hoàn thiện tại C05-A. Internal BankLink và Payment use-case ports chỉ được controller cùng module gọi, chưa phải public contracts cho module khác. Payment command nhận actor do auth adapter cấp, không nhận source wallet từ body.
+C03/C04 đã publish `BankAccountQueryApi.requireActiveAccount(linkedBankId,walletId)` làm seam chưa khóa row. C05-A thay seam này bằng `BankEligibilityApi.requireActiveForPosting`: scoped ownership + current PESSIMISTIC_WRITE refresh, giữ lock tới commit/rollback; unlink dùng cùng port. Read-only seam cũ được gỡ, không giữ hai đường eligibility khác nhau. Internal BankLink và Payment use-case ports chỉ được controller cùng module gọi, chưa phải public contracts cho module khác. Payment command nhận actor do auth adapter cấp, không nhận source wallet từ body.
 
 `PaymentCommandApi` kèm key/receipt được publish tại C04-A (xem C04-A-r1); history API có cursor tại C08-A. Không tạo tham số key bị bỏ qua hoặc lớp receipt giả tại C03. C06/C10 vẫn phải dùng các public event/read APIs được chốt ở mục 3 khi triển khai; không import use case/domain/persistence hiện tại. Revision này không thay thứ tự migration, invariant hoặc acceptance gates của các task sau.
 
 HTTP timestamps giữ định dạng LocalDateTime cũ; Wallet public view theo cách diễn giải UTC đã có ở C03-B, HTTP adapter chuyển ngược cùng ZoneOffset để không đổi giá trị hiển thị. Không cập nhật hay gắn lại timezone dữ liệu lịch sử.
+
+### 2.3. Revision C05-A-r1 — fresh attempt và bank serialization
+
+MoneyRules kiểm tra positive/range/exact arithmetic trước writes; Wallet owner vẫn versioned optimistic, flush mỗi thay đổi theo ID tăng dần. Facade NEVER retry tối đa 3 attempts, chỉ optimistic/1213+40001, sleep sau rollback (25–50/50–100 ms). Business errors và lock timeout 1205 không implicit retry, kể cả Connector/J báo state 40001.
+
+Payment executor/write use cases và bank write entrypoints dùng READ_COMMITTED; open-in-view=false để không reuse L1 cache/request context qua attempt. Default datasource/read-only/reconciliation snapshot policy không đổi. Bank row current refresh + lock được dùng chung giữa eligibility/unlink; không có Wallet pessimistic strategy hoặc JVM lock mới. Hash/receipt/schema v1/v2 và replay protocol C04 giữ nguyên. Chi tiết/evidence theo C05-A-r1 và PR candidate, A nghiệm thu trước merge.
 
 ## 3. Java public interfaces — chữ ký đích
 

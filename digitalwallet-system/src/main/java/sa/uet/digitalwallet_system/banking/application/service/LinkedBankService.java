@@ -23,9 +23,9 @@ public class LinkedBankService implements LinkBankUseCase, GetLinkedBanksUseCase
     private final LoadLinkedBankPort loadLinkedBankPort;
 
     @Override
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public LinkedBankAccount link(LinkBankCommand command) {
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
         LinkedBankAccount account = LinkedBankAccount.builder()
                 .walletId(command.getWalletId())
                 .bankCode(command.getBankCode())
@@ -47,9 +47,9 @@ public class LinkedBankService implements LinkBankUseCase, GetLinkedBanksUseCase
     }
 
     @Override
-    @Transactional
+    @Transactional(isolation = org.springframework.transaction.annotation.Isolation.READ_COMMITTED)
     public void unlink(Long linkedBankId, Long walletId) {
-        LinkedBankAccount existing = loadLinkedBankPort.loadByIdAndWalletId(linkedBankId, walletId)
+        LinkedBankAccount existing = loadLinkedBankPort.lockByIdAndWalletId(linkedBankId, walletId)
                 .orElseThrow(LinkedBankNotFoundException::new);
 
         if (!"ACTIVE".equals(existing.getStatus())) {
@@ -65,7 +65,7 @@ public class LinkedBankService implements LinkBankUseCase, GetLinkedBanksUseCase
                 .holderName(existing.getHolderName())
                 .status("UNLINKED")
                 .linkedAt(existing.getLinkedAt())
-                .unlinkedAt(LocalDateTime.now())
+                .unlinkedAt(LocalDateTime.now(java.time.ZoneOffset.UTC))
                 .build();
 
         saveLinkedBankPort.save(unlinked);

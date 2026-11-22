@@ -71,4 +71,9 @@ class ArchitectureRuleProofTest {
                 Set.of("wallet"), Map.of("wallet", Set.of()));
         assertThatCode(() -> ModuleArchitectureVerifier.verifyProduction(classes, policy)).doesNotThrowAnyException();
     }
+    @Test void productionEngineRejectsWalletCallingBankPostingEligibility() {
+        assertRejected("architecture.fixtures.bankcaller", Set.of("wallet","banking","payment"),
+                Map.of("wallet",Set.of("banking"),"banking",Set.of(),"payment",Set.of("banking")),
+                "is not an allowed caller");
+    }
 }

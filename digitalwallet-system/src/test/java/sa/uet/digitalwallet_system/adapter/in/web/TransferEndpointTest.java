@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
         sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
         sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
-        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankEligibilityService.class, GlobalExceptionHandler.class})
 class TransferEndpointTest {
     private static final String PATH = "/api/v1/transactions/transfer";
     private static final String BODY = "{\"targetWalletNumber\":\"WAL20\",\"amount\":250,\"description\":\"Chuyen tien\"}";

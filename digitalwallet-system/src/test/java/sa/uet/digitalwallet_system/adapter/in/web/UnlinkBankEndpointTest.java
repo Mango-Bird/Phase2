@@ -61,6 +61,7 @@ class UnlinkBankEndpointTest {
     @MockitoBean private LinkedBankAccountRepository repository;
     @MockitoBean private LinkedBankAccountMapper mapper;
 
+    @MockitoBean jakarta.persistence.EntityManager entityManager;
     private MockMvc mockMvc;
 
     @BeforeEach
@@ -72,6 +73,7 @@ class UnlinkBankEndpointTest {
     void activeAccountIsSoftUnlinkedForAuthenticatedWallet() throws Exception {
         stubWallet(USER_ID, WALLET_ID);
         LinkedBankAccountJpaEntity originalEntity = new LinkedBankAccountJpaEntity();
+        originalEntity.setWalletId(WALLET_ID);
         originalEntity.setId(BANK_ID);
         LinkedBankAccount original = bank(WALLET_ID, "ACTIVE");
         when(repository.findByIdAndWalletId(BANK_ID, WALLET_ID)).thenReturn(Optional.of(originalEntity));
@@ -220,7 +222,7 @@ class UnlinkBankEndpointTest {
     }
 
     private void stubWallet(long userId, long walletId) {
-        when(getWalletUseCase.getOwnedWallet(userId)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now()).updatedAt(java.time.LocalDateTime.now())
+        when(getWalletUseCase.getOwnedWallet(userId)).thenReturn(sa.uet.digitalwallet_system.wallet.application.WalletViews.fromDomain(Wallet.builder().version(0L).createdAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC)).updatedAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC))
                 .id(walletId).userId(userId).walletNumber("WAL" + walletId)
                 .balance(0L).status("ACTIVE").build()));
     }

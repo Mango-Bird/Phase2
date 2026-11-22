@@ -26,7 +26,7 @@ final class ModuleArchitectureVerifier {
                     "identity.api.IdentityRegistrationApi", Set.of("identity", "onboarding"),
                     "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding"),
                     "wallet.api.WalletPostingApi", Set.of("wallet", "payment"),
-                    "banking.api.BankAccountQueryApi", Set.of("banking", "payment")
+                    "banking.api.BankEligibilityApi", Set.of("banking", "payment")
             ),
             Map.of(), Map.of());
 
@@ -86,7 +86,7 @@ final class ModuleArchitectureVerifier {
                 Map.of("identity.api.IdentityRegistrationApi", Set.of("identity", "onboarding"),
                        "wallet.api.WalletCreationApi", Set.of("wallet", "onboarding"),
                        "wallet.api.WalletPostingApi", Set.of("wallet", "payment"),
-                       "banking.api.BankAccountQueryApi", Set.of("banking", "payment")),
+                       "banking.api.BankEligibilityApi", Set.of("banking", "payment")),
                 Map.of(), Map.of());
     }
 
