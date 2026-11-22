@@ -16,6 +16,8 @@ import java.time.LocalDateTime;
 import sa.uet.digitalwallet_system.platform.api.error.ModuleFailure;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -38,7 +40,20 @@ public class GlobalExceptionHandler {
             case DUPLICATE_USER -> HttpStatus.CONFLICT;
             case INVALID_CREDENTIALS -> HttpStatus.UNAUTHORIZED;
         };
-        return buildErrorResponse(status, ex.getMessage(), request.getRequestURI(), null);
+        if (Set.of("IDEMPOTENCY_KEY_REUSED", "REQUEST_IN_PROGRESS").contains(ex.code() == null ? "" : ex.code()))
+            status = HttpStatus.CONFLICT;
+        var response = buildErrorResponse(status, ex.getMessage(), request.getRequestURI(), null);
+        response.getBody().setCode(ex.code() != null ? ex.code() : switch (ex.kind()) {
+            case INSUFFICIENT_BALANCE -> "INSUFFICIENT_BALANCE";
+            case DUPLICATE_USER -> "USER_ALREADY_EXISTS";
+            case INVALID_CREDENTIALS -> "UNAUTHENTICATED";
+            case NOT_FOUND -> "RESOURCE_NOT_FOUND";
+            default -> "INVALID_REQUEST";
+        });
+        response.getBody().setRetryable(ex.retryable());
+        if ("REQUEST_IN_PROGRESS".equals(ex.code()))
+            return ResponseEntity.status(status).header("Retry-After", "1").body(response.getBody());
+        return response;
     }
 
     @ExceptionHandler(IllegalArgumentException.class)
@@ -68,6 +83,9 @@ public class GlobalExceptionHandler {
                 .message(message)
                 .path(path)
                 .errors(errors)
+                .code(status == HttpStatus.BAD_REQUEST ? "INVALID_REQUEST" : status == HttpStatus.CONFLICT ? "CONCURRENT_UPDATE" : status == HttpStatus.NOT_FOUND ? "RESOURCE_NOT_FOUND" : status == HttpStatus.UNAUTHORIZED ? "UNAUTHENTICATED" : "INTERNAL_ERROR")
+                .retryable(status == HttpStatus.CONFLICT || status.is5xxServerError())
+                .traceId(UUID.randomUUID().toString())
                 .build();
         return ResponseEntity.status(status).body(body);
     }

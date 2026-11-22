@@ -40,7 +40,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=topup-endpoint-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
+        TransactionService.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentFacade.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
+        sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, GlobalExceptionHandler.class})
 class TopupEndpointTest {
     private static final String PATH = "/api/v1/transactions/topup";
     private static final String BODY = "{\"linkedBankAccountId\":501,\"amount\":250,\"description\":\"Nap tien\"}";
@@ -152,7 +157,7 @@ class TopupEndpointTest {
 
     private org.springframework.test.web.servlet.ResultActions request(String body, String jwt) throws Exception {
         return mvc.perform(post(PATH).contentType(MediaType.APPLICATION_JSON)
-                .header("Authorization", "Bearer " + jwt).content(body));
+                .header("Idempotency-Key", java.util.UUID.randomUUID().toString()).header("Authorization", "Bearer " + jwt).content(body));
     }
 
     private String token() {
@@ -171,7 +176,7 @@ class TopupEndpointTest {
         when(loadLinkedBankPort.loadByIdAndWalletId(501L, 10L)).thenReturn(Optional.of(
                 LinkedBankAccount.builder().id(501L).walletId(10L).status(bankStatus).build()));
         when(saveTransactionPort.save(any(Transaction.class)))
-                .thenAnswer(call -> call.getArgument(0));
+                .thenAnswer(call -> sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.saved(call.getArgument(0)));
     }
 
     private void noBusinessCalls() {

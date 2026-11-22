@@ -39,7 +39,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         "app.jwt.secret=get-transactions-test-signing-key-2026", "app.jwt.expiration-ms=86400000"
 })
 @Import({SecurityConfig.class, JwtAuthenticationFilter.class, JwtTokenService.class,
-        TransactionService.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, TransactionPersistenceAdapter.class, GlobalExceptionHandler.class})
+        TransactionService.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentFacade.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentExecutor.class,
+        sa.uet.digitalwallet_system.payment.application.PaymentReplayReader.class,
+        sa.uet.digitalwallet_system.payment.adapter.serialization.PaymentJsonEncoding.class,
+        sa.uet.digitalwallet_system.payment.PaymentMvcStorageConfiguration.class, sa.uet.digitalwallet_system.wallet.application.WalletPostingService.class, sa.uet.digitalwallet_system.banking.application.BankAccountQueryService.class, TransactionPersistenceAdapter.class, GlobalExceptionHandler.class})
 class GetTransactionsEndpointTest {
     private static final String PATH = "/api/v1/transactions";
     @Autowired WebApplicationContext context;
@@ -117,7 +122,7 @@ class GetTransactionsEndpointTest {
     }
 
     private org.springframework.test.web.servlet.ResultActions request(String jwt) throws Exception {
-        return mvc.perform(get(PATH).header("Authorization", "Bearer " + jwt));
+        return mvc.perform(get(PATH).header("Idempotency-Key", java.util.UUID.randomUUID().toString()).header("Authorization", "Bearer " + jwt));
     }
 
     private String token(long userId) { return tokenGenerator.issue(userId, "history-user-" + userId, "ROLE_USER").value(); }

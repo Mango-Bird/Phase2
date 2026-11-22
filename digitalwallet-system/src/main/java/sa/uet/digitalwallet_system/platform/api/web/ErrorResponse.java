@@ -24,4 +24,7 @@ public class ErrorResponse {
     private String message;
     private String path;
     private Map<String, String> errors;
+    private String code;
+    private Boolean retryable;
+    private String traceId;
 }

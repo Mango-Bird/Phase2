@@ -50,7 +50,7 @@ Các chữ ký ở mục 3 là đích toàn Phase 2. C03-A triển khai `WalletQ
 
 Banking hiện publish `BankAccountQueryApi.requireActiveAccount(linkedBankId,walletId)` để kiểm tra sở hữu/trạng thái trong transaction Payment. API này **chưa khóa bank row**, không được diễn giải thành guarantee chống race unlink/payment. `BankEligibilityApi` với locking semantics được hoàn thiện tại C05-A. Internal BankLink và Payment use-case ports chỉ được controller cùng module gọi, chưa phải public contracts cho module khác. Payment command nhận actor do auth adapter cấp, không nhận source wallet từ body.
 
-`PaymentCommandApi` kèm key/receipt được publish tại C04-A khi idempotency thực sự tồn tại; history API có cursor tại C08-A. Không tạo tham số key bị bỏ qua hoặc lớp receipt giả tại C03. C06/C10 vẫn phải dùng các public event/read APIs được chốt ở mục 3 khi triển khai; không import use case/domain/persistence hiện tại. Revision này không thay thứ tự migration, invariant hoặc acceptance gates của các task sau.
+`PaymentCommandApi` kèm key/receipt được publish tại C04-A (xem C04-A-r1); history API có cursor tại C08-A. Không tạo tham số key bị bỏ qua hoặc lớp receipt giả tại C03. C06/C10 vẫn phải dùng các public event/read APIs được chốt ở mục 3 khi triển khai; không import use case/domain/persistence hiện tại. Revision này không thay thứ tự migration, invariant hoặc acceptance gates của các task sau.
 
 HTTP timestamps giữ định dạng LocalDateTime cũ; Wallet public view theo cách diễn giải UTC đã có ở C03-B, HTTP adapter chuyển ngược cùng ZoneOffset để không đổi giá trị hiển thị. Không cập nhật hay gắn lại timezone dữ liệu lịch sử.
 

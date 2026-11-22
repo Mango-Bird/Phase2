@@ -7,6 +7,11 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import io.swagger.v3.oas.annotations.Parameter;
+import sa.uet.digitalwallet_system.payment.adapter.in.web.dto.response.PaymentSuccessResponse;
+import org.springframework.http.MediaType;
+import sa.uet.digitalwallet_system.payment.api.*;
+import sa.uet.digitalwallet_system.payment.application.PaymentValidation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -19,13 +24,6 @@ import sa.uet.digitalwallet_system.platform.api.web.ErrorResponse;
 import sa.uet.digitalwallet_system.payment.adapter.in.web.dto.response.TransactionResponse;
 import sa.uet.digitalwallet_system.payment.application.port.in.GetTransactionsUseCase;
 import sa.uet.digitalwallet_system.wallet.api.WalletQueryApi;
-import sa.uet.digitalwallet_system.payment.application.port.in.TopupCommand;
-import sa.uet.digitalwallet_system.payment.application.port.in.TopupUseCase;
-import sa.uet.digitalwallet_system.payment.application.port.in.TransferCommand;
-import sa.uet.digitalwallet_system.payment.application.port.in.TransferUseCase;
-import sa.uet.digitalwallet_system.payment.application.port.in.WithdrawCommand;
-import sa.uet.digitalwallet_system.payment.application.port.in.WithdrawUseCase;
-import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
 import sa.uet.digitalwallet_system.wallet.api.WalletView;
 
 import java.util.List;
@@ -39,15 +37,15 @@ import java.util.stream.Collectors;
 public class TransactionController {
 
     private final WalletQueryApi getWalletUseCase;
-    private final TopupUseCase topupUseCase;
-    private final WithdrawUseCase withdrawUseCase;
-    private final TransferUseCase transferUseCase;
+    private final PaymentCommandApi payments;
     private final GetTransactionsUseCase getTransactionsUseCase;
 
     @PostMapping("/topup")
     @Operation(summary = "Topup wallet", description = "Transfers money from linked bank account to wallet")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Topup successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Topup successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated",
@@ -55,24 +53,23 @@ public class TransactionController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Wallet or linked bank account not found",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity<ApiResponse<TransactionResponse>> topup(
+    public ResponseEntity<String> topup(
             @AuthenticationPrincipal Long userId,
+            @Parameter(description = "Reuse the same key for retries of the same intent", required = true,
+                    schema = @Schema(type = "string", pattern = "[A-Za-z0-9._:-]{1,64}", minLength = 1, maxLength = 64))
+            @RequestHeader(name = "Idempotency-Key", required = false) String key,
             @Valid @RequestBody TopupRequest request) {
-        WalletView wallet = getWalletUseCase.getOwnedWallet(userId);
-        TopupCommand command = new TopupCommand(
-                userId,
-                request.getLinkedBankAccountId(),
-                request.getAmount(),
-                request.getDescription()
-        );
-        Transaction tx = topupUseCase.topup(command);
-        return ResponseEntity.ok(ApiResponse.success("Topup successful", TransactionResponse.fromDomain(tx)));
+        PaymentValidation.key(key);
+        PaymentReceipt receipt = payments.topup(userId, key, new TopupInput(request.getLinkedBankAccountId(), request.getAmount(), request.getDescription()));
+        return ResponseEntity.status(receipt.httpStatus()).contentType(MediaType.APPLICATION_JSON).body(receipt.successBody());
     }
 
     @PostMapping("/withdraw")
     @Operation(summary = "Withdraw money", description = "Transfers money from wallet to linked bank account")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Withdraw successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Withdraw successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active / Insufficient balance",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated",
@@ -80,24 +77,23 @@ public class TransactionController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Wallet or linked bank account not found",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity<ApiResponse<TransactionResponse>> withdraw(
+    public ResponseEntity<String> withdraw(
             @AuthenticationPrincipal Long userId,
+            @Parameter(description = "Reuse the same key for retries of the same intent", required = true,
+                    schema = @Schema(type = "string", pattern = "[A-Za-z0-9._:-]{1,64}", minLength = 1, maxLength = 64))
+            @RequestHeader(name = "Idempotency-Key", required = false) String key,
             @Valid @RequestBody WithdrawRequest request) {
-        WalletView wallet = getWalletUseCase.getOwnedWallet(userId);
-        WithdrawCommand command = new WithdrawCommand(
-                userId,
-                request.getLinkedBankAccountId(),
-                request.getAmount(),
-                request.getDescription()
-        );
-        Transaction tx = withdrawUseCase.withdraw(command);
-        return ResponseEntity.ok(ApiResponse.success("Withdraw successful", TransactionResponse.fromDomain(tx)));
+        PaymentValidation.key(key);
+        PaymentReceipt receipt = payments.withdraw(userId, key, new WithdrawInput(request.getLinkedBankAccountId(), request.getAmount(), request.getDescription()));
+        return ResponseEntity.status(receipt.httpStatus()).contentType(MediaType.APPLICATION_JSON).body(receipt.successBody());
     }
 
     @PostMapping("/transfer")
     @Operation(summary = "Transfer money", description = "Transfers money from caller's wallet to another wallet by wallet number")
     @ApiResponses({
-            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transfer successful"),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transfer successful", content = @Content(schema = @Schema(implementation = PaymentSuccessResponse.class))),
+            @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "Key reused, request in progress or concurrent update",
+                    content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Validation failed / Wallet not active / Insufficient balance",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class))),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated",
@@ -105,18 +101,15 @@ public class TransactionController {
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Source or target wallet not found",
                     content = @Content(schema = @Schema(implementation = ErrorResponse.class)))
     })
-    public ResponseEntity<ApiResponse<TransactionResponse>> transfer(
+    public ResponseEntity<String> transfer(
             @AuthenticationPrincipal Long userId,
+            @Parameter(description = "Reuse the same key for retries of the same intent", required = true,
+                    schema = @Schema(type = "string", pattern = "[A-Za-z0-9._:-]{1,64}", minLength = 1, maxLength = 64))
+            @RequestHeader(name = "Idempotency-Key", required = false) String key,
             @Valid @RequestBody TransferRequest request) {
-        WalletView wallet = getWalletUseCase.getOwnedWallet(userId);
-        TransferCommand command = new TransferCommand(
-                userId,
-                request.getTargetWalletNumber(),
-                request.getAmount(),
-                request.getDescription()
-        );
-        Transaction tx = transferUseCase.transfer(command);
-        return ResponseEntity.ok(ApiResponse.success("Transfer successful", TransactionResponse.fromDomain(tx)));
+        PaymentValidation.key(key);
+        PaymentReceipt receipt = payments.transfer(userId, key, new TransferInput(request.getTargetWalletNumber(), request.getAmount(), request.getDescription()));
+        return ResponseEntity.status(receipt.httpStatus()).contentType(MediaType.APPLICATION_JSON).body(receipt.successBody());
     }
 
     @GetMapping

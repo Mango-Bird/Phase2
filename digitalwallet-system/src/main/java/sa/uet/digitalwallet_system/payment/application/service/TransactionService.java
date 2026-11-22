@@ -54,7 +54,7 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
                 .linkedBankAccountId(command.getLinkedBankAccountId())
                 .amount(command.getAmount())
                 .description(command.getDescription())
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(java.time.ZoneOffset.UTC))
                 .build();
 
         return saveTransactionPort.save(tx);
@@ -86,7 +86,7 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
                 .linkedBankAccountId(command.getLinkedBankAccountId())
                 .amount(command.getAmount())
                 .description(command.getDescription())
-                .createdAt(LocalDateTime.now())
+                .createdAt(LocalDateTime.now(java.time.ZoneOffset.UTC))
                 .build();
 
         return saveTransactionPort.save(tx);
@@ -99,7 +99,7 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
         PostingWallet target = walletPosting.loadTargetForPosting(command.getTargetWalletNumber());
 
         if (source.id() == target.id()) {
-            throw new IllegalArgumentException("Cannot transfer to the same wallet");
+            throw new sa.uet.digitalwallet_system.payment.api.error.PaymentFailure("SAME_WALLET", "Cannot transfer to the same wallet", false);
         }
         if (!"ACTIVE".equals(source.status())) {
             throw new WalletNotActiveException(source.walletNumber());
@@ -111,7 +111,7 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
             throw new InsufficientBalanceException();
         }
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(java.time.ZoneOffset.UTC);
 
         // Atomic debit source, credit target
         walletPosting.applyBalanceChange(new BalanceChange(source.id(), source.version(), source.balance(), source.balance() - command.getAmount()));

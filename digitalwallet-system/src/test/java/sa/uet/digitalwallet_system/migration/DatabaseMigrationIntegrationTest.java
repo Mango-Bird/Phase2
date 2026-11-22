@@ -48,6 +48,41 @@ class DatabaseMigrationIntegrationTest {
     }
 
     @Test
+    void upgradesVerifiedV1ToV2WithoutRewritingBusinessData() throws Exception {
+        String url = newSchema("c04_upgrade");
+        installLegacyFixture(url);
+        List<String> before;
+        try (Connection connection = connection(url)) { before = businessSnapshot(connection); }
+        baselineVerifiedPhase1(url);
+        var latest = Flyway.configure().dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration").baselineOnMigrate(false).load();
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
+        try (Connection connection = connection(url)) {
+            assertThat(businessSnapshot(connection)).isEqualTo(before);
+            assertThat(scalar(connection, "SELECT COUNT(*) FROM idempotency_requests")).isZero();
+            assertThat(scalar(connection, "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version='2'")).isEqualTo(1);
+            assertThatThrownBy(() -> {
+                try (var statement = connection.createStatement()) {
+                    statement.executeUpdate("INSERT INTO idempotency_requests(actor_id,operation,idempotency_key,request_hash,status,created_at) VALUES (101,'TOPUP','invalid-result','" + "a".repeat(64) + "','COMPLETED',UTC_TIMESTAMP(6))");
+                }
+            }).hasMessageContaining("chk_idempotency_result");
+        }
+        assertThat(latest.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void freshLatestSchemaAppliesBothVersions() throws Exception {
+        String url = newSchema("c04_fresh");
+        var latest = Flyway.configure().dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration").baselineOnMigrate(false).load();
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(2);
+        try (Connection connection = connection(url)) {
+            assertThat(scalar(connection, "SELECT COUNT(*) FROM idempotency_requests")).isZero();
+            assertThat(scalar(connection, "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2')")).isEqualTo(2);
+        }
+    }
+
+    @Test
     void explicitlyBaselinesVerifiedPhase1DataWithoutChangingIt() throws Exception {
         String url = newSchema("c02_legacy");
         installLegacyFixture(url);
@@ -283,6 +318,7 @@ class DatabaseMigrationIntegrationTest {
                 .dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
                 .locations("classpath:db/migration")
                 .baselineOnMigrate(false)
+                .target("1") // C02 verifies the immutable four-table V1 baseline; C04 tests latest migration.
                 .baselineVersion("1")
                 .baselineDescription("Verified Phase 1 baseline")
                 .validateOnMigrate(true)

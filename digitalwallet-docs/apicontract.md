@@ -2,6 +2,27 @@
 
 Tài liệu này mô tả API của baseline hiện tại, đối chiếu với [OpenAPI 3.1 JSON](swaggerAPI/api-docs.json), controller và DTO trong `digitalwallet-system`. Các ví dụ thời gian và định danh chỉ nhằm minh họa.
 
+## Cập nhật runtime C04-A — payment idempotency
+
+Phần còn lại của tài liệu và `swaggerAPI/api-docs.json` là snapshot baseline Phase 1. Khi dùng runtime C04-A, áp dụng [contract C04-A-r1](phase2/contracts/C04-A-r1.md) và OpenAPI runtime `/v3/api-docs`:
+
+- POST `/api/v1/transactions/topup`, `/withdraw`, `/transfer` bắt buộc `Idempotency-Key`, ASCII case-sensitive `[A-Za-z0-9._:-]{1,64}`. Không dùng transaction reference thay key.
+- Tạo key một lần cho mỗi ý định thanh toán. Timeout/mất response/500/REQUEST_IN_PROGRESS: retry **cùng key và payload**; không tạo key mới để dò kết quả.
+- Cùng actor/operation/key + cùng payload đã commit: 200 và nguyên success body đã lưu, kể cả timestamp. Khác payload: 409 `IDEMPOTENCY_KEY_REUSED`.
+- Claim đang bị giữ lock có thể trả 409 `REQUEST_IN_PROGRESS`, retryable=true, `Retry-After: 1`. Request thất bại rollback cả key, không cache business failure.
+- Ba command endpoints từ chối JSON unknown/duplicate fields và numeric coercion: amount phải là JSON integer dương trong long, không chuỗi/float/exponent. Description thiếu/null tương đương; empty khác null; giữ Unicode/whitespace hợp lệ.
+- Success envelope/data giữ shape hiện tại, kể cả null fields. Error giữ fields cũ và thêm `code`, `retryable`, `traceId`. Auth vẫn bắt buộc khi replay.
+
+```bash
+curl -X POST 'http://localhost:8080/api/v1/transactions/topup' \
+  -H 'Authorization: Bearer <access_token>' \
+  -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: topup-intent-001' \
+  -d '{"linkedBankAccountId":31,"amount":100,"description":null}'
+```
+
+Lặp lại nguyên lệnh với cùng key/payload để retry ý định đó. Muốn topup lần mới thì tạo key mới. GET history, bank APIs và auth không yêu cầu header này. C04 chưa hoàn thiện retry concurrency/unlink locking của C05.
+
 ## 1. Quy ước chung
 
 - Base path: `/api/v1`. Request có body dùng `Content-Type: application/json`.

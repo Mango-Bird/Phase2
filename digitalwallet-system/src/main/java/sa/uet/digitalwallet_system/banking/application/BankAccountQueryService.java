@@ -17,6 +17,6 @@ public class BankAccountQueryService implements BankAccountQueryApi {
     public void requireActiveAccount(long linkedBankId, long walletId) {
         var account = loadLinkedBankPort.loadByIdAndWalletId(linkedBankId, walletId)
                 .orElseThrow(LinkedBankNotFoundException::new);
-        if (!"ACTIVE".equals(account.getStatus())) throw new IllegalArgumentException("Linked bank account is not active");
+        if (!"ACTIVE".equals(account.getStatus())) throw new sa.uet.digitalwallet_system.banking.api.error.BankNotActiveException();
     }
 }

@@ -26,6 +26,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	// C04 canonical request hashing / strict JSON parsing explicitly use Jackson 2.
+	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	runtimeOnly 'org.flywaydb:flyway-mysql'
 
 	// JWT (JJWT)
@@ -61,6 +63,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Launch an independent JVM in C04 integration tests, using the same production classes.
+	systemProperty 'c04.production.classpath', sourceSets.main.runtimeClasspath.asPath
 }
 
 tasks.register('baselinePhase1', JavaExec) {
