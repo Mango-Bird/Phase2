@@ -55,7 +55,7 @@ class DatabaseMigrationIntegrationTest {
         try (Connection connection = connection(url)) { before = businessSnapshot(connection); }
         baselineVerifiedPhase1(url);
         var latest = Flyway.configure().dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
-                .locations("classpath:db/migration").baselineOnMigrate(false).load();
+                .locations("classpath:db/migration").target("2").baselineOnMigrate(false).load();
         assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
         try (Connection connection = connection(url)) {
             assertThat(businessSnapshot(connection)).isEqualTo(before);
@@ -71,14 +71,95 @@ class DatabaseMigrationIntegrationTest {
     }
 
     @Test
-    void freshLatestSchemaAppliesBothVersions() throws Exception {
+    void freshSchemaThroughV2AppliesBothVersions() throws Exception {
         String url = newSchema("c04_fresh");
         var latest = Flyway.configure().dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
-                .locations("classpath:db/migration").baselineOnMigrate(false).load();
+                .locations("classpath:db/migration").target("2").baselineOnMigrate(false).load();
         assertThat(latest.migrate().migrationsExecuted).isEqualTo(2);
         try (Connection connection = connection(url)) {
             assertThat(scalar(connection, "SELECT COUNT(*) FROM idempotency_requests")).isZero();
             assertThat(scalar(connection, "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2')")).isEqualTo(2);
+        }
+    }
+
+    @Test
+    void upgradesPopulatedV2DatabaseToV3WithoutChangingBusinessDataAndDoesNotRepeat() throws Exception {
+        String url = newSchema("c06_upgrade");
+        installLegacyFixture(url);
+        baselineVerifiedPhase1(url);
+        assertThat(flywayTarget(url, "2").migrate().migrationsExecuted).isEqualTo(1);
+        List<String> before;
+        try (Connection connection = connection(url)) { before = businessSnapshot(connection); }
+
+        Flyway latest = flywayLatest(url);
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(1);
+        try (Connection connection = connection(url)) {
+            assertThat(businessSnapshot(connection)).isEqualTo(before);
+            assertThat(scalar(connection, "SELECT COUNT(*) FROM outbox_events")).isZero();
+            assertThat(scalar(connection,
+                    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version='3'"))
+                    .isEqualTo(1L);
+        }
+        assertThat(latest.migrate().migrationsExecuted).isZero();
+    }
+
+    @Test
+    void freshLatestSchemaAppliesV1ThroughV3AndEnforcesOutboxContract() throws Exception {
+        String url = newSchema("c06_fresh");
+        Flyway latest = flywayLatest(url);
+        assertThat(latest.migrate().migrationsExecuted).isEqualTo(3);
+
+        try (Connection connection = connection(url)) {
+            assertThat(scalar(connection,
+                    "SELECT COUNT(*) FROM flyway_schema_history WHERE success=1 AND version IN ('1','2','3')"))
+                    .isEqualTo(3L);
+            assertThat(scalar(connection, """
+                    SELECT COUNT(*) FROM information_schema.STATISTICS
+                    WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='outbox_events'
+                      AND INDEX_NAME IN ('uq_outbox_aggregate_event','idx_outbox_dispatch','idx_outbox_lease')
+                    """)).isEqualTo(8L);
+            assertThat(scalar(connection, """
+                    SELECT COUNT(*) FROM information_schema.TABLE_CONSTRAINTS
+                    WHERE CONSTRAINT_SCHEMA=DATABASE() AND TABLE_NAME='outbox_events'
+                      AND CONSTRAINT_TYPE='CHECK' AND ENFORCED='YES'
+                    """)).isEqualTo(7L);
+            assertThatThrownBy(() -> {
+                try (var statement = connection.createStatement()) {
+                    statement.executeUpdate("""
+                            INSERT INTO outbox_events(event_id,aggregate_type,aggregate_id,event_type,
+                                schema_version,payload,status,attempts,next_attempt_at,created_at)
+                            VALUES ('00000000-0000-0000-0000-000000000001','PAYMENT',401,
+                                'payment.completed.v1',1,JSON_ARRAY(),'PENDING',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+                            """);
+                }
+            }).hasMessageContaining("chk_outbox_event");
+            try (var statement = connection.createStatement()) {
+                statement.executeUpdate("""
+                        INSERT INTO outbox_events(event_id,aggregate_type,aggregate_id,event_type,
+                            schema_version,payload,status,attempts,next_attempt_at,created_at)
+                        VALUES ('00000000-0000-0000-0000-000000000002','PAYMENT',402,
+                            'payment.completed.v1',1,JSON_OBJECT(),'PENDING',0,UTC_TIMESTAMP(6),UTC_TIMESTAMP(6))
+                        """);
+                statement.executeUpdate("""
+                        UPDATE outbox_events SET status='CLAIMED', attempts=1,
+                            lease_until=DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 30 SECOND),
+                            claim_token='00000000-0000-0000-0000-000000000099', claim_owner='worker-a'
+                        WHERE event_id='00000000-0000-0000-0000-000000000002'
+                        """);
+            }
+            assertThat(scalar(connection, """
+                    SELECT COUNT(*) FROM outbox_events
+                    WHERE status='CLAIMED' AND attempts=1 AND lease_until IS NOT NULL
+                      AND claim_token IS NOT NULL AND claim_owner='worker-a'
+                    """)).isEqualTo(1L);
+            assertThatThrownBy(() -> {
+                try (var statement = connection.createStatement()) {
+                    statement.executeUpdate("""
+                            UPDATE outbox_events SET status='DONE', processed_at=UTC_TIMESTAMP(6)
+                            WHERE event_id='00000000-0000-0000-0000-000000000002'
+                            """);
+                }
+            }).hasMessageContaining("chk_outbox_claim");
         }
     }
 
@@ -321,6 +402,27 @@ class DatabaseMigrationIntegrationTest {
                 .target("1") // C02 verifies the immutable four-table V1 baseline; C04 tests latest migration.
                 .baselineVersion("1")
                 .baselineDescription("Verified Phase 1 baseline")
+                .validateOnMigrate(true)
+                .outOfOrder(false)
+                .load();
+    }
+
+    private static Flyway flywayTarget(String url, String target) {
+        return Flyway.configure()
+                .dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .target(target)
+                .baselineOnMigrate(false)
+                .validateOnMigrate(true)
+                .outOfOrder(false)
+                .load();
+    }
+
+    private static Flyway flywayLatest(String url) {
+        return Flyway.configure()
+                .dataSource(url, MYSQL.getUsername(), MYSQL.getPassword())
+                .locations("classpath:db/migration")
+                .baselineOnMigrate(false)
                 .validateOnMigrate(true)
                 .outOfOrder(false)
                 .load();

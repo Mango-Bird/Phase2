@@ -438,7 +438,7 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 | C02-B | B | MERGED (PR #7) | Flyway V1 + MySQL harness; migrations đã applied không được sửa |
 | C03-B / C03-A | B rồi A | MERGED (PR #8 / #9) | Native modules + UTC/gate fixes đã merge; C04-A có thể triển khai |
 | C04-A / C05-A | A | C04-A MERGED (PR #10); C05-A LOCAL VERIFIED / CHỜ CI + A | Money invariants/row locks/bounded retry; xem C05-A-r1 và candidate PR, A tự nghiệm thu |
-| C06-B / C06-A | B rồi A | TODO | Storage rồi publisher, A nghiệm thu |
+| C06-B / C06-A | B rồi A | C06-B LOCAL VERIFIED / CHỜ CI + A; C06-A TODO | V3 storage trước, sau đó A tích hợp publisher nguyên tử |
 | C07-B | B | TODO | Worker/inbox/recovery, A review |
 | C08-A | A | TODO | Query/history, A tự kiểm tra |
 | C09-A / C09-B | A / B | TODO | Security / observability, A nghiệm thu |

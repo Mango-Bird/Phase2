@@ -76,4 +76,10 @@ class ArchitectureRuleProofTest {
                 Map.of("wallet",Set.of("banking"),"banking",Set.of(),"payment",Set.of("banking")),
                 "is not an allowed caller");
     }
+
+    @Test void productionEngineRejectsNonPaymentOutboxAppendCaller() {
+        assertRejected("architecture.fixtures.outboxcaller", Set.of("identity", "payment", "platform"),
+                Map.of("identity", Set.of("platform"), "payment", Set.of("platform"), "platform", Set.of()),
+                "is not an allowed caller");
+    }
 }
