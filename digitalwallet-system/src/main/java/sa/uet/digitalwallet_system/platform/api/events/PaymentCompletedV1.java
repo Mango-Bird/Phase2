@@ -28,6 +28,7 @@ public record PaymentCompletedV1(
         Objects.requireNonNull(referenceCode, "referenceCode");
         Objects.requireNonNull(type, "type");
         Objects.requireNonNull(occurredAt, "occurredAt");
+        if (eventId.equals(referenceCode)) throw new IllegalArgumentException("eventId and referenceCode must differ");
         if (!EVENT_TYPE.equals(eventType)) throw new IllegalArgumentException("eventType must be " + EVENT_TYPE);
         if (schemaVersion != SCHEMA_VERSION) throw new IllegalArgumentException("schemaVersion must be 1");
         if (transactionId <= 0) throw new IllegalArgumentException("transactionId must be positive");
