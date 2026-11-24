@@ -1,4 +1,6 @@
-# C09-B runbook — available configuration and pending observability contract
+# C09-B candidate runbook — configuration, metrics and health
+
+Status: **PROPOSED**. Apply final production routing/alerts only after A reviews the proposal and candidate implementation.
 
 ## JWT deployment
 
@@ -18,22 +20,40 @@ $env:APP_JWT_SECRET = '<unique secret from an approved secret store>'
 
 Do not paste a real secret into issue/PR comments or committed `.env` files.
 
-## Observability integration status
+## Management and worker configuration
 
-No custom metric names, correlation header or management endpoint has been invented on this branch. The following dashboard sections remain blocked until A publishes their exact contract:
+- Management defaults to `127.0.0.1:9091`. Override with `MANAGEMENT_SERVER_ADDRESS`/`MANAGEMENT_SERVER_PORT` only on a private interface protected by network ACL and current JWT authentication.
+- Never route `/actuator/**` through the public application ingress.
+- `APP_OUTBOX_WORKER_ENABLED=false` is truthful until C07-B supplies a worker. Do not set it true merely to make health green.
+- Worker defaults: poll interval `1s`, stale threshold at least `max(10s, 3 * poll interval)`, startup grace `15s`.
 
-| Intended panel | Required contract before implementation |
-|---|---|
-| HTTP/payment duration and status | metric name, unit, buckets/SLO, route/status label normalization |
-| Conflict/deadlock/retry/replay | separate counter names and bounded reason/operation labels |
-| Outbox pending/oldest/DEAD | metric names, seconds vs milliseconds, query cadence and error behavior |
-| Worker health | real C07-B heartbeat/state seam and health-to-readiness mapping |
-| DB pool | approved standard Hikari meter names and dashboard labels |
-| Reconciliation findings | C10-B seam and approved metric name/labels |
+| Endpoint | Access | Purpose |
+|---|---|---|
+| `/actuator/health/liveness` | Management listener, no auth | Process progress only; excludes DB and worker |
+| `/actuator/health/readiness` | Management listener, no auth | Application readiness plus DB |
+| `/actuator/health/worker` | Management listener, current JWT | Worker state/reason; never an app restart probe |
+| `/actuator/prometheus` | Management listener, current JWT | Standard HTTP/Hikari and proposed `digitalwallet.*` metrics |
 
-## Triage policy after unblock
+Only `health` and `prometheus` are exposed. Do not enable env/configprops/beans/mappings/loggers/heapdump/threaddump/shutdown.
 
-- Correlation lookup instructions require the approved header/MDC/response policy; currently generated error `traceId` values are local response metadata and are not yet an end-to-end correlation guarantee.
-- DB outage should make the approved DB readiness component fail.
-- Worker unhealthy with a healthy DB must remain a separate degraded signal and must not make Payment unavailable. This cannot be proven until C07-B publishes a real worker-health seam.
-- Oldest pending and DEAD observations must be derived from real `outbox_events` rows, never synthetic gauges. C06-B supplies the table; C07-B/C09-B will define safe polling/instrumentation after the contract is merged.
+## Triage
+
+- Readiness DOWN + worker reason `DB_UNAVAILABLE`: investigate MySQL/connectivity/pool; Payment is expected to be unavailable.
+- Readiness UP + worker DOWN (`LOOP_STOPPED`, `POLL_STALE`, `POLL_FAILED`): keep the API serving, alert the worker owner and inspect backlog. Do not restart healthy Payment instances solely for worker health.
+- Worker `OUT_OF_SERVICE/DISABLED`: expected before C07-B or when intentionally disabled; alert according to deployment intent.
+- `digitalwallet.outbox.events{status="dead"} > 0`: investigate/replay through the future audited C07-B operation. DEAD alone does not make readiness or liveness fail.
+- A `NaN` backlog gauge means collection/DB failure, not zero backlog. Cross-check readiness and Hikari pending/timeouts.
+
+## Correlation lookup
+
+Send a single UUID in `X-Correlation-ID`, or let the server create one. The effective UUID is echoed and appears in log fields `correlationId` and `traceId`. Invalid/multiple values are replaced and never reflected.
+
+Full response-body/event correlation is pending C09-A/C06-A integration. Until those owners connect `CorrelationIdProvider`, do not claim that the current error-body `traceId` or outbox event always equals the response header.
+
+## Dashboard panels after A review
+
+- HTTP request rate/error and p95/p99 from `http.server.requests`, grouped only by templated URI/method/status.
+- Hikari active/idle/pending/max and acquire/timeout.
+- Outbox pending/claimed/dead plus oldest pending age.
+- Worker up, last-success age, poll results and committed transitions after C07-B integration.
+- Payment duration/conflict/retry/replay after A publishes the typed hook; do not derive these from all HTTP 409/500 responses.

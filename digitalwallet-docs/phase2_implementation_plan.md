@@ -441,7 +441,7 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 | C06-B / C06-A | B rồi A | C06-B LOCAL VERIFIED / CHỜ CI + A; C06-A TODO | V3 storage trước, sau đó A tích hợp publisher nguyên tử |
 | C07-B | B | TODO | Worker/inbox/recovery, A review |
 | C08-A | A | TODO | Query/history, A tự kiểm tra |
-| C09-A / C09-B | A / B | TODO / C09-B PARTIAL-BLOCKED | JWT config hardened on B branch; metrics/correlation/health wait for A contract and C06-A/C07-B seams |
+| C09-A / C09-B | A / B | TODO / C09-B PROPOSED | JWT config hardened; exact metrics/correlation/management/health proposal awaits A decision before implementation |
 | C10-B / C11-B | B | TODO | Reconciliation / benchmark cuối, A review |
 | C12-B / C12-A | B / A | TODO | B bàn giao vận hành, A release |
 
