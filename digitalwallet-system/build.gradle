@@ -63,6 +63,8 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Test-process-only signing material. Runtime and deployment configuration still require APP_JWT_SECRET.
+	environment 'APP_JWT_SECRET', 'test-only-signing-key-never-use-in-production-2026'
 	// Launch an independent JVM in C04 integration tests, using the same production classes.
 	systemProperty 'c04.production.classpath', sourceSets.main.runtimeClasspath.asPath
 }
