@@ -53,7 +53,9 @@ Sources: `architecture-contracts-v1.md` sections 2, 5 and 7; `work-orders-v2.md`
 - Application-owned metrics use prefix `digitalwallet.`. Existing Spring Boot/Micrometer HTTP and Hikari metrics are reused instead of duplicated.
 - Metric descriptions and base units are mandatory at registration. A metric name must have exactly one type and one fixed label-key set for the lifetime of the process.
 - Labels contain only the bounded values listed below. Never use raw URI, username, user/wallet/transaction/event/reference IDs, idempotency key, exception message, SQL, claim owner or correlation ID as a label.
-- A missing measurement is not fabricated as success. Database-backed gauges retain the last successful value for at most one scrape interval and expose the collection failure through worker/health signals; after that they return `NaN`.
+- A missing measurement is not fabricated as success. Outbox gauges are backed by one immutable, timestamped snapshot collected every `5s`. A failed collection does not advance the timestamp; the last successful snapshot remains visible for the configured `15s` scrape interval and then all four gauges return `NaN`.
+- Gauge callbacks are memory-only and never acquire a JDBC connection or trigger a refresh. One fixed-delay background task executes one aggregate query for all four values, atomically publishes only a complete successful result, and rejects overlapping collection attempts.
+- Collection has a `1500ms` end-to-end deadline covering connection acquisition and query/network I/O. It uses a dedicated read-only Hikari pool (`outbox-metrics-pool`) capped at one connection, so an unavailable metrics query cannot consume or reconfigure the Payment datasource. The collector owns one bounded daemon thread and closes its scheduler and pool during application shutdown; timed-out JDBC work is cancelled by the driver/network timeout rather than abandoned in another executor.
 
 ### 3.2 Standard metrics reused without aliases
 
@@ -195,7 +197,7 @@ Proposed merge order: C09-B supplies the proposal and independently testable cor
 | C09B-06 | Worker processes/fails/reclaims two events concurrently | Each attempt uses its event correlation and clears it; no cross-event context leak. |
 | C09B-07 | Exercise success, business failure, deadlock/optimistic retry, replay and lock timeout | Exact counters/timer labels increment once at their defined observation point; no forbidden/high-cardinality labels. |
 | C09B-08 | Inspect Prometheus exposition | Required standard/custom names, types, units and histogram buckets exist; no raw URI, ID, key, correlation or message labels. |
-| C09B-09 | Query backlog with no rows, PENDING/CLAIMED/DEAD rows and DB error | Counts/oldest age are correct; DEAD does not change readiness; collection failure is not reported as a successful zero. |
+| C09B-09 | Query backlog with no rows, PENDING/CLAIMED/DEAD rows, slow/lost DB and exhausted metrics pool | One real MySQL aggregate produces a complete snapshot; Prometheus scrape remains responsive and still exports HTTP/Hikari series; a recent success is retained, then becomes `NaN`; recovery replaces it with current DB values. No collection overlap, orphan task or Payment-pool starvation occurs. |
 | C09B-10 | Public application port requests `/actuator/**` | Not exposed. Private liveness/readiness work without details; Prometheus/worker details reject missing/invalid monitoring credentials. |
 | C09B-11 | DB unavailable | Readiness DOWN; liveness remains UP; worker reason is `DB_UNAVAILABLE`; Payment is unavailable as expected. |
 | C09B-12 | Worker loop stopped while DB remains healthy | Worker DOWN and alert metric changes; readiness/liveness stay UP and a Payment command can still complete/append. |

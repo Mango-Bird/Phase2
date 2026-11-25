@@ -26,6 +26,8 @@ Do not paste a real secret into issue/PR comments or committed `.env` files.
 - Never route `/actuator/**` through the public application ingress.
 - `APP_OUTBOX_WORKER_ENABLED=false` is truthful until C07-B supplies a worker. Do not set it true merely to make health green.
 - Worker defaults: poll interval `1s`, stale threshold at least `max(10s, 3 * poll interval)`, startup grace `15s`.
+- Outbox metric defaults: background interval `APP_OUTBOX_METRICS_COLLECTION_INTERVAL=5s`, end-to-end JDBC deadline `APP_OUTBOX_METRICS_COLLECTION_DEADLINE=1500ms`, freshness TTL `APP_OUTBOX_METRICS_FRESHNESS_TTL=15s`. Keep the TTL equal to the deployment scrape interval unless an accepted contract revision says otherwise.
+- The collector uses a separate read-only pool capped at one connection. Do not point it at a privileged account, increase its pool to compensate for a slow database, or change Payment pool timeouts for metrics. Scrapes use memory only and must never synchronously refresh the snapshot.
 
 | Endpoint | Access | Purpose |
 |---|---|---|
@@ -42,7 +44,7 @@ Only `health` and `prometheus` are exposed. Do not enable env/configprops/beans/
 - Readiness UP + worker DOWN (`LOOP_STOPPED`, `POLL_STALE`, `POLL_FAILED`): keep the API serving, alert the worker owner and inspect backlog. Do not restart healthy Payment instances solely for worker health.
 - Worker `OUT_OF_SERVICE/DISABLED`: expected before C07-B or when intentionally disabled; alert according to deployment intent.
 - `digitalwallet.outbox.events{status="dead"} > 0`: investigate/replay through the future audited C07-B operation. DEAD alone does not make readiness or liveness fail.
-- A `NaN` backlog gauge means collection/DB failure, not zero backlog. Cross-check readiness and Hikari pending/timeouts.
+- A `NaN` backlog gauge means no successful snapshot or a success older than `APP_OUTBOX_METRICS_FRESHNESS_TTL`, not zero backlog. A transient collection failure retains the last success without refreshing its timestamp; after recovery the next fixed-delay collection replaces all four values atomically. Cross-check readiness and the separate `outbox-metrics-pool` Hikari pending/timeouts.
 
 ## Correlation lookup
 

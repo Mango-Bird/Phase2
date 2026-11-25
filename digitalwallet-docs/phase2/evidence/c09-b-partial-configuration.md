@@ -1,6 +1,6 @@
 # C09-B candidate evidence — configuration and observability infrastructure
 
-Date: 2026-11-24 (Asia/Saigon)
+Date: 2026-11-25 (Asia/Saigon)
 
 Status: **PARTIAL / PROPOSED — NOT ACCEPTED**
 
@@ -13,7 +13,9 @@ Proposal: `contracts/C09-B-observability-contract-proposal-r1.md`
 - Concurrent filter tests prove no MDC leak across reused threads. `CorrelationIdProvider` and scoped install are available for C06-A/C07-B integration.
 - Actuator/Prometheus run on a dedicated loopback management listener by default. Only `health` and `prometheus` are exposed. Liveness/readiness probes are permitted on that listener; Prometheus and worker details retain current JWT authentication. The application listener does not serve Actuator.
 - HTTP server and Hikari use their standard Micrometer metrics. Server histogram buckets are configured according to the proposal.
-- Outbox PENDING/CLAIMED/DEAD and oldest-PENDING-age gauges query the real C06-B table. A DB read failure returns `NaN`, never a fabricated zero.
+- Outbox PENDING/CLAIMED/DEAD and oldest-PENDING-age gauges read only an atomic immutable memory snapshot. A single fixed-delay collector refreshes all four values from the real C06-B table with one aggregate query; Prometheus scrapes never execute JDBC.
+- Collection defaults are interval `5s`, end-to-end deadline `1500ms`, and freshness TTL `15s`. The dedicated read-only `outbox-metrics-pool` is capped at one connection and is separate from Payment's datasource. Failed collection retains the prior timestamp/value only within the TTL; no success or stale success exports `NaN`; recovery publishes current database values.
+- MySQL 8.4 integration tests exercise the authenticated Prometheus endpoint during a real `SLEEP(5)` query, an exhausted metrics pool and a closed metrics datasource. Each scrape remains below the one-second test bound and still contains `http_server_requests_seconds` and `hikaricp_connections_active`; timeout cleanup leaves no waiter/active-connection leak, and collection recovers afterward.
 - `OutboxWorkerObserver` and `OutboxWorkerMonitor` provide typed callback, bounded counters and separate health semantics. With no C07-B worker, the real status is `OUT_OF_SERVICE/DISABLED`; no heartbeat or event transition is invented.
 - Integration evidence inserts a real PENDING row into MySQL 8.4 and verifies its value in authenticated Prometheus exposition.
 
@@ -26,7 +28,7 @@ Focused unit/integration regression:
   --tests "*OutboxWorkerMonitorTest" --tests "*ManagementObservabilityIntegrationTest" --no-daemon
 ```
 
-Result: PASS.
+Result: PASS, including four MySQL 8.4 management integration scenarios and controlled-clock/no-overlap snapshot regressions.
 
 Full backend regression:
 
@@ -34,7 +36,7 @@ Full backend regression:
 .\gradlew clean build --no-daemon --stacktrace
 ```
 
-Result: `BUILD SUCCESSFUL` in 3m 48s; **276 tests, 0 failures, 0 errors, 0 skipped**. This includes WebMvc/security slices, architecture tests and MySQL Testcontainers migration/transaction/integration tests.
+Result: `BUILD SUCCESSFUL` in 3m 41s; **280 tests, 0 failures, 0 errors, 0 skipped**. This includes WebMvc/security slices, architecture tests and MySQL Testcontainers migration/transaction/integration tests.
 
 ## Explicitly blocked integration — not claimed
 
