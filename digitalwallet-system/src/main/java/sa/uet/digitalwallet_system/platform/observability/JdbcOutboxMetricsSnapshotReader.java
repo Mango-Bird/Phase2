@@ -27,6 +27,7 @@ final class JdbcOutboxMetricsSnapshotReader implements OutboxMetricsSnapshotRead
                     0
                 ), 0) AS oldest_pending_age_seconds
             FROM outbox_events
+            WHERE status IN ('PENDING', 'CLAIMED', 'DEAD')
             """;
 
     private final OutboxMetricsDataSource dataSource;

@@ -1,6 +1,6 @@
 # C09-B candidate evidence — configuration and observability infrastructure
 
-Date: 2026-11-25 (Asia/Saigon)
+Date: 2026-11-26 (Asia/Saigon)
 
 Status: **PARTIAL / PROPOSED — NOT ACCEPTED**
 
@@ -16,6 +16,30 @@ Proposal: `contracts/C09-B-observability-contract-proposal-r1.md`
 - Outbox PENDING/CLAIMED/DEAD and oldest-PENDING-age gauges read only an atomic immutable memory snapshot. A single fixed-delay collector refreshes all four values from the real C06-B table with one aggregate query; Prometheus scrapes never execute JDBC.
 - Collection defaults are interval `5s`, end-to-end deadline `1500ms`, and freshness TTL `15s`. The dedicated read-only `outbox-metrics-pool` is capped at one connection and is separate from Payment's datasource. Failed collection retains the prior timestamp/value only within the TTL; no success or stale success exports `NaN`; recovery publishes current database values.
 - MySQL 8.4 integration tests exercise the authenticated Prometheus endpoint during a real `SLEEP(5)` query, an exhausted metrics pool and a closed metrics datasource. Each scrape remains below the one-second test bound and still contains `http_server_requests_seconds` and `hikaricp_connections_active`; timeout cleanup leaves no waiter/active-connection leak, and collection recovers afterward.
+
+## Actionable-only snapshot query and execution plan
+
+The P2 follow-up excludes retained DONE history in the database predicate while preserving the aggregate semantics:
+
+```sql
+-- Before
+FROM outbox_events
+
+-- After
+FROM outbox_events
+WHERE status IN ('PENDING', 'CLAIMED', 'DEAD')
+```
+
+Evidence was collected on the dedicated MySQL 8.4 Testcontainers database after `ANALYZE TABLE outbox_events`. The deterministic fixture contained `DONE=10000`, `PENDING=1`, `CLAIMED=1`, and `DEAD=1`. Empty and DONE-only states both produced a valid all-zero snapshot. The one PENDING row was 10 seconds old while all DONE rows were one day old; the returned oldest-pending age remained based only on PENDING.
+
+The C06-B schema already supplies `idx_outbox_dispatch(status, next_attempt_at, created_at)` and `idx_outbox_lease(status, lease_until)`. The former is selected and covering for the snapshot query, so no schema migration or `FORCE INDEX` was added.
+
+| Query | Access type | Selected key | Estimated input rows | Actual input rows | Aggregate execution |
+|---|---|---|---:|---:|---:|
+| Before predicate | `index` | `idx_outbox_dispatch` | 9990 | 10003 | 2.03 ms |
+| After actionable predicate | `range` | `idx_outbox_dispatch` | 3 | 3 | 0.142 ms |
+
+`EXPLAIN ANALYZE` before reported a covering full index scan (`actual time=0.0261..0.904`, 10003 rows). After reported a covering index range scan over exactly CLAIMED, DEAD and PENDING (`actual time=0.0138..0.0203`, 3 rows), followed by the status filter (`actual time=0.0352..0.0421`, 3 rows). These are local test-environment measurements, not production performance claims.
 - `OutboxWorkerObserver` and `OutboxWorkerMonitor` provide typed callback, bounded counters and separate health semantics. With no C07-B worker, the real status is `OUT_OF_SERVICE/DISABLED`; no heartbeat or event transition is invented.
 - Integration evidence inserts a real PENDING row into MySQL 8.4 and verifies its value in authenticated Prometheus exposition.
 
@@ -28,7 +52,7 @@ Focused unit/integration regression:
   --tests "*OutboxWorkerMonitorTest" --tests "*ManagementObservabilityIntegrationTest" --no-daemon
 ```
 
-Result: PASS, including four MySQL 8.4 management integration scenarios and controlled-clock/no-overlap snapshot regressions.
+Result: PASS, including five MySQL 8.4 management integration scenarios and controlled-clock/no-overlap snapshot regressions.
 
 Full backend regression:
 
@@ -36,7 +60,7 @@ Full backend regression:
 .\gradlew clean build --no-daemon --stacktrace
 ```
 
-Result: `BUILD SUCCESSFUL` in 3m 41s; **280 tests, 0 failures, 0 errors, 0 skipped**. This includes WebMvc/security slices, architecture tests and MySQL Testcontainers migration/transaction/integration tests.
+Result: `BUILD SUCCESSFUL` in 4m 21s; **281 tests, 0 failures, 0 errors, 0 skipped**. This includes WebMvc/security slices, architecture tests and MySQL Testcontainers migration/transaction/integration tests.
 
 ## Explicitly blocked integration — not claimed
 

@@ -28,6 +28,7 @@ Do not paste a real secret into issue/PR comments or committed `.env` files.
 - Worker defaults: poll interval `1s`, stale threshold at least `max(10s, 3 * poll interval)`, startup grace `15s`.
 - Outbox metric defaults: background interval `APP_OUTBOX_METRICS_COLLECTION_INTERVAL=5s`, end-to-end JDBC deadline `APP_OUTBOX_METRICS_COLLECTION_DEADLINE=1500ms`, freshness TTL `APP_OUTBOX_METRICS_FRESHNESS_TTL=15s`. Keep the TTL equal to the deployment scrape interval unless an accepted contract revision says otherwise.
 - The collector uses a separate read-only pool capped at one connection. Do not point it at a privileged account, increase its pool to compensate for a slow database, or change Payment pool timeouts for metrics. Scrapes use memory only and must never synchronously refresh the snapshot.
+- The snapshot query reads only `PENDING`, `CLAIMED` and `DEAD`; retained DONE history is intentionally excluded at `WHERE` and must not be reintroduced into the five-second collection path. The existing C06-B `idx_outbox_dispatch` index supports this predicate; investigate plan/statistics before proposing any schema change.
 
 | Endpoint | Access | Purpose |
 |---|---|---|
