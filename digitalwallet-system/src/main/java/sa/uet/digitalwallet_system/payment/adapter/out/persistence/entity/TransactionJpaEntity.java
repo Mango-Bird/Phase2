@@ -41,5 +41,7 @@ public class TransactionJpaEntity {
     String description;
 
     @Column(name = "created_at", nullable = false, updatable = false)
+    // DATETIME stores UTC wall time. Bind LocalDateTime directly, without a JVM-zone Timestamp conversion.
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.LOCAL_DATE_TIME)
     LocalDateTime createdAt;
 }

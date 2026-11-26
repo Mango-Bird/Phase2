@@ -79,7 +79,7 @@ abstract class PaymentDatabaseHttpTestSupport {
         Files.write(arguments, lines, StandardCharsets.UTF_8);
         String executable = System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java";
         second = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", executable).toString(),
-                "-Xmx256m", "@"+arguments).redirectErrorStream(true).redirectOutput(log.toFile()).start();
+                "-Xmx256m", "-Duser.timezone=Asia/Bangkok", "@"+arguments).redirectErrorStream(true).redirectOutput(log.toFile()).start();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
         while (second.isAlive() && Files.size(probe) == 0 && System.nanoTime() < deadline) Thread.sleep(50);
         assertThat(Files.size(probe)).withFailMessage("Independent JVM did not start: %s", Files.readString(log)).isPositive();
@@ -100,6 +100,7 @@ abstract class PaymentDatabaseHttpTestSupport {
     }
     @BeforeEach void seed() {
         storeTarget = org.springframework.test.util.AopTestUtils.getUltimateTargetObject(store);
+        jdbc.update("DELETE FROM outbox_events");
         jdbc.update("DELETE FROM idempotency_requests"); jdbc.update("DELETE FROM transactions");
         jdbc.update("DELETE FROM linked_bank_accounts"); jdbc.update("DELETE FROM wallets"); jdbc.update("DELETE FROM users");
         jdbc.update("INSERT INTO users(id,username,password_hash,full_name,email,role,created_at) VALUES "
@@ -113,6 +114,20 @@ abstract class PaymentDatabaseHttpTestSupport {
                 +"(32,22,'BANK','Bank','******5678','Target','ACTIVE',UTC_TIMESTAMP())");
     }
     String token(long actor) { return tokens.issue(actor, "test-user", "ROLE_USER").value(); }
+    @AfterEach void everyCommittedPaymentHasExactlyOneMatchingEventAndNoOrphans() {
+        assertThat(count("outbox_events")).isEqualTo(count("transactions"));
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM transactions t LEFT JOIN outbox_events o
+                  ON o.aggregate_type='PAYMENT' AND o.aggregate_id=t.id AND o.event_type='payment.completed.v1'
+                WHERE o.event_id IS NULL
+                """,Long.class)).isZero();
+        assertThat(jdbc.queryForObject("""
+                SELECT COUNT(*) FROM outbox_events o LEFT JOIN transactions t ON t.id=o.aggregate_id
+                WHERE t.id IS NULL
+                   OR JSON_UNQUOTE(JSON_EXTRACT(o.payload,'$.referenceCode'))<>t.reference_code
+                   OR JSON_UNQUOTE(JSON_EXTRACT(o.payload,'$.transactionId'))<>t.id
+                """,Long.class)).isZero();
+    }
     HttpRequest request(int targetPort, long actor, String op, String key, String body) {
         return HttpRequest.newBuilder(URI.create("http://localhost:"+targetPort+"/api/v1/transactions/"+op))
                 .timeout(Duration.ofSeconds(45)).header("Authorization", "Bearer "+token(actor))
@@ -125,6 +140,7 @@ abstract class PaymentDatabaseHttpTestSupport {
     long balance(long id) { return jdbc.queryForObject("SELECT balance FROM wallets WHERE id=?",Long.class,id); }
     long count(String table) { return jdbc.queryForObject("SELECT COUNT(*) FROM "+table,Long.class); }
     void oneEffect(long expectedBalance) {
+        assertThat(count("outbox_events")).isEqualTo(1);
         assertThat(count("transactions")).isEqualTo(1); assertThat(count("idempotency_requests")).isEqualTo(1);
         assertThat(balance(11)).isEqualTo(expectedBalance);
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM idempotency_requests WHERE status='PROCESSING'",Long.class)).isZero();

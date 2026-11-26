@@ -20,7 +20,8 @@ class TransactionServiceInvariantTest {
     final BankEligibilityApi banks=mock(BankEligibilityApi.class);
     final SaveTransactionPort save=mock(SaveTransactionPort.class);
     final LoadTransactionPort history=mock(LoadTransactionPort.class);
-    final TransactionService service=new TransactionService(wallets,banks,save,history);
+    final sa.uet.digitalwallet_system.payment.application.PaymentEventPublisher events=mock(sa.uet.digitalwallet_system.payment.application.PaymentEventPublisher.class);
+    final TransactionService service=new TransactionService(wallets,banks,save,history,events);
     @ParameterizedTest @NullSource @ValueSource(longs={0,-1,Long.MIN_VALUE})
     void directUseCasesValidateAmountEvenWithoutHttpOrFacade(Long amount) {
         assertThatThrownBy(() -> service.topup(new TopupCommand(101L,11L,31L,amount,null))).isInstanceOf(PaymentFailure.class);

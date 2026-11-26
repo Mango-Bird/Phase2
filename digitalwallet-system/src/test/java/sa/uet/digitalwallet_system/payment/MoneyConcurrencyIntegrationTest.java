@@ -60,6 +60,7 @@ class MoneyConcurrencyIntegrationTest extends PaymentDatabaseHttpTestSupport {
     long version(long id) { return jdbc.queryForObject("SELECT version FROM wallets WHERE id=?",Long.class,id); }
     BigInteger total() { return jdbc.queryForObject("SELECT SUM(balance) FROM wallets",BigDecimal.class).toBigIntegerExact(); }
     void noEffects() {
+        assertThat(count("outbox_events")).isZero();
         assertThat(count("transactions")).isZero(); assertThat(count("idempotency_requests")).isZero();
         assertThat(balance(11)).isEqualTo(1000); assertThat(balance(22)).isEqualTo(500); assertThat(balance(33)).isZero();
         assertThat(version(11)).isZero(); assertThat(version(22)).isZero(); assertThat(version(33)).isZero();

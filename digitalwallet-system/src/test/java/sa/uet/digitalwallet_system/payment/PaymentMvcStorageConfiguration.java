@@ -11,6 +11,11 @@ import java.util.concurrent.ConcurrentHashMap;
 /** Only WebMvc slices: JDBC atomicity is tested separately against MySQL, not simulated here. */
 @TestConfiguration
 public class PaymentMvcStorageConfiguration {
+    // MVC slices verify HTTP contracts only; real transactional append is covered by MySQL suites.
+    @Bean sa.uet.digitalwallet_system.payment.application.PaymentEventPublisher events() {
+        return new sa.uet.digitalwallet_system.payment.application.PaymentEventPublisher(event -> {},
+                new sa.uet.digitalwallet_system.platform.observability.MdcCorrelationIdProvider());
+    }
     @Bean PaymentRetryDelayPort retryDelay() { return attempt -> {}; }
     @Bean PaymentFlushPort flush() { return () -> {}; }
     @Bean IdempotencyStore store() {

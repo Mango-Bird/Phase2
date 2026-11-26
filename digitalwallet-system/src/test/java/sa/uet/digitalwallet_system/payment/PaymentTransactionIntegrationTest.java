@@ -48,6 +48,7 @@ class PaymentTransactionIntegrationTest {
     @MockitoSpyBean SaveTransactionPort history;
 
     @BeforeEach void seed() {
+        jdbc.update("DELETE FROM outbox_events");
         jdbc.update("DELETE FROM transactions");
         jdbc.update("DELETE FROM linked_bank_accounts");
         jdbc.update("DELETE FROM wallets");
