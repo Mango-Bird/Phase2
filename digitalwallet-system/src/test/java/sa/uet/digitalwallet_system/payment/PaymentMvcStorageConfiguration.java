@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 /** Only WebMvc slices: JDBC atomicity is tested separately against MySQL, not simulated here. */
+@org.springframework.context.annotation.Import(sa.uet.digitalwallet_system.payment.application.LegacyHistoryQueryService.class)
 @TestConfiguration
 public class PaymentMvcStorageConfiguration {
     // MVC slices verify HTTP contracts only; real transactional append is covered by MySQL suites.

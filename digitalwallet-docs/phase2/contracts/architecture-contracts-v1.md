@@ -290,10 +290,10 @@ Chọn **Flyway SQL migrations** ở C02-B. Một owner schema, production Hiber
 | V2 | A C04-A | idempotency_requests và constraints |
 | V3 | B C06-B | outbox_events |
 | V4 | B C07-B | notifications |
-| V5 | A C08-A | history indexes, chỉ thêm sau EXPLAIN |
+| V5 | A C08-A | RETIRED/không tạo: EXPLAIN + 100k evidence chọn existing indexes; không tái dùng slot này |
 | V6 | B C10-B | reconciliation openings/runs/findings |
 
-Đây là reservation cho thứ tự merge, chưa tạo migration file. C08 có thể nghiên cứu song song nhưng migration V5 phải merge/apply sau V4; C10 V6 sau V5. Nếu đảo thứ tự cần A cập nhật reservation trước khi bất kỳ file đã được merge; không bật out-of-order để che xung đột.
+Revision C08-A: sau EXPLAIN/đo 100k rows, C08-A không thêm index và không tạo V5. Slot V5 retired trước khi có migration applied; C10-B V6 cần theo sau V4, không phải chờ một file V5. Index lịch sử trong tương lai phải nhận version mới cao hơn các version đã applied/reserved, không thêm V5 sau V6. Giữ out-of-order disabled và migration applied immutable. [Flyway versioned migration ordering](https://documentation.red-gate.com/fd/versioned-migrations-273973333.html).
 
 DB trống migrate từ V1. DB cũ chỉ được baseline V1 bằng thao tác có kiểm tra metadata/constraint/index và backup trước đó; `baselineOnMigrate=false`. Kiểm tra schema tương đương rồi baseline version 1 rõ ràng; schema khác phải từ chối. Migration đã applied là immutable, sửa bằng migration mới, không tự động clean/drop/undo dữ liệu.
 

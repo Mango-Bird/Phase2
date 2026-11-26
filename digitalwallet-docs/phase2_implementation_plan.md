@@ -438,10 +438,10 @@ Không commit dump chứa secret/PII hoặc artifact tải quá lớn; dùng see
 | C02-B | B | MERGED (PR #7) | Flyway V1 + MySQL harness; migrations đã applied không được sửa |
 | C03-B / C03-A | B rồi A | MERGED (PR #8 / #9) | Native modules + UTC/gate fixes đã merge; C04-A có thể triển khai |
 | C04-A / C05-A | A | C04-A MERGED (PR #10); C05-A LOCAL VERIFIED / CHỜ CI + A | Money invariants/row locks/bounded retry; xem C05-A-r1 và candidate PR, A tự nghiệm thu |
-| C06-B / C06-A | B rồi A | C06-B MERGED PR #12; C06-A LOCAL VERIFIED / CHỜ CI + A | Atomic append từ verified posting snapshots; replay không append; xem C06-A-r1 |
+| C06-B / C06-A | B rồi A | C06-B MERGED PR #12; C06-A MERGED PR #14 | Atomic append từ verified posting snapshots; replay không append; xem C06-A-r1 |
 | C07-B | B | TODO | Worker/inbox/recovery, A review |
-| C08-A | A | TODO | Query/history, A tự kiểm tra |
-| C09-A / C09-B | A / B | TODO / C09-B PROPOSED | JWT config hardened; exact metrics/correlation/management/health proposal awaits A decision before implementation |
+| C08-A | A | LOCAL VERIFIED / CHỜ CI + A | v2 bounded cursor/detail, legacy v1 deprecated; 100k OR/UNION evidence, no new index; C08-A-r1 |
+| C09-A / C09-B | A / B | TODO / C09-B MERGED PR #13 | A tiếp tục ownership/security; B infrastructure đã merge |
 | C10-B / C11-B | B | TODO | Reconciliation / benchmark cuối, A review |
 | C12-B / C12-A | B / A | TODO | B bàn giao vận hành, A release |
 

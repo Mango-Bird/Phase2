@@ -55,6 +55,12 @@ abstract class PaymentDatabaseHttpTestSupport {
     static final String TOPUP = "{\"linkedBankAccountId\":31,\"amount\":100}";
 
     static void startSecond() throws Exception {
+        startSecond("Asia/Bangkok");
+    }
+    @java.lang.annotation.Retention(java.lang.annotation.RetentionPolicy.RUNTIME)
+    @java.lang.annotation.Target(java.lang.annotation.ElementType.TYPE)
+    @interface InstanceTimeZone { String value(); }
+    static void startSecond(String timeZone) throws Exception {
         Path directory = Path.of("build/c04-process-test").toAbsolutePath();
         Files.createDirectories(directory);
         Path probe = Files.createTempFile(directory, "instance-", ".probe");
@@ -79,7 +85,7 @@ abstract class PaymentDatabaseHttpTestSupport {
         Files.write(arguments, lines, StandardCharsets.UTF_8);
         String executable = System.getProperty("os.name").toLowerCase().contains("win") ? "java.exe" : "java";
         second = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", executable).toString(),
-                "-Xmx256m", "-Duser.timezone=Asia/Bangkok", "@"+arguments).redirectErrorStream(true).redirectOutput(log.toFile()).start();
+                "-Xmx256m", "-Duser.timezone="+timeZone, "@"+arguments).redirectErrorStream(true).redirectOutput(log.toFile()).start();
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(60);
         while (second.isAlive() && Files.size(probe) == 0 && System.nanoTime() < deadline) Thread.sleep(50);
         assertThat(Files.size(probe)).withFailMessage("Independent JVM did not start: %s", Files.readString(log)).isPositive();
@@ -91,7 +97,10 @@ abstract class PaymentDatabaseHttpTestSupport {
     static String quoteArgument(String arg) {
         return "\"" + arg.replace("\\", "\\\\").replace("\"", "\\\"") + "\"";
     }
-    @BeforeAll static void anotherIndependentApplicationInstance() throws Exception { startSecond(); }
+    @BeforeAll static void anotherIndependentApplicationInstance(TestInfo info) throws Exception {
+        var zone=info.getTestClass().orElseThrow().getAnnotation(InstanceTimeZone.class);
+        startSecond(zone==null?"Asia/Bangkok":zone.value());
+    }
     @AfterAll static void shutdownSecond() throws Exception {
         if (second != null && second.isAlive()) {
             second.destroy();

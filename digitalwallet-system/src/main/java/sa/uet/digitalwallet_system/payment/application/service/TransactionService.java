@@ -3,14 +3,12 @@ package sa.uet.digitalwallet_system.payment.application.service;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import sa.uet.digitalwallet_system.payment.application.port.in.GetTransactionsUseCase;
 import sa.uet.digitalwallet_system.payment.application.port.in.TopupCommand;
 import sa.uet.digitalwallet_system.payment.application.port.in.TopupUseCase;
 import sa.uet.digitalwallet_system.payment.application.port.in.TransferCommand;
 import sa.uet.digitalwallet_system.payment.application.port.in.TransferUseCase;
 import sa.uet.digitalwallet_system.payment.application.port.in.WithdrawCommand;
 import sa.uet.digitalwallet_system.payment.application.port.in.WithdrawUseCase;
-import sa.uet.digitalwallet_system.payment.application.port.out.LoadTransactionPort;
 import sa.uet.digitalwallet_system.payment.application.port.out.SaveTransactionPort;
 import sa.uet.digitalwallet_system.payment.domain.model.Transaction;
 import sa.uet.digitalwallet_system.payment.application.PaymentEventPublisher;
@@ -25,12 +23,11 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
-public class TransactionService implements TopupUseCase, WithdrawUseCase, TransferUseCase, GetTransactionsUseCase {
+public class TransactionService implements TopupUseCase, WithdrawUseCase, TransferUseCase {
 
     private final WalletPostingApi walletPosting;
     private final BankEligibilityApi bankAccounts;
     private final SaveTransactionPort saveTransactionPort;
-    private final LoadTransactionPort loadTransactionPort;
     private final PaymentEventPublisher events;
 
     @Override
@@ -147,9 +144,4 @@ public class TransactionService implements TopupUseCase, WithdrawUseCase, Transf
         return saved;
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<Transaction> getTransactions(Long walletId) {
-        return loadTransactionPort.loadByWalletId(walletId);
-    }
 }
