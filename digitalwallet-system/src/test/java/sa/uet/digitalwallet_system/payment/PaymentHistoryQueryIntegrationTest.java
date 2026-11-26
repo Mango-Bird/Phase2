@@ -119,6 +119,7 @@ class PaymentHistoryQueryIntegrationTest extends PaymentDatabaseHttpTestSupport 
         var response=get(port,0,"/v3/api-docs");assertThat(response.statusCode()).isEqualTo(200);
         var paths=JSON.readTree(response.body()).path("paths");
         assertThat(paths.path("/api/v1/transactions").path("get").path("deprecated").asBoolean()).isTrue();
+        assertThat(paths.path("/api/v2/transactions").path("get").path("description").asText()).contains("DST gap/overlap boundaries return 400");
         for(String path:List.of("/api/v2/transactions","/api/v2/transactions/{referenceCode}")) {
             var operation=paths.path(path).path("get");
             for(String code:List.of("200","400","401","404")) assertThat(operation.path("responses").has(code)).as(path+" "+code).isTrue();

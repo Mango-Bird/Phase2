@@ -233,7 +233,9 @@ GET `/api/v1/transactions` giữ nguyên full list để tương thích và đư
 | `limit` | Default 20; 1..100 |
 | `cursor` | Opaque URL-safe cursor từ `nextCursor`, tối đa 1024 ký tự; bound wallet và type/from/to; có thể đổi limit |
 | `type` | TOPUP, WITHDRAW hoặc TRANSFER; bỏ trống để lấy cả ba |
-| `from`, `to` | ISO local history time, from inclusive/to exclusive, millisecond precision; from < to; giữ timezone/mapping lịch sử hiện có |
+| `from`, `to` | ISO local history time, from inclusive/to exclusive, millisecond precision; from < to; cận phải xác định duy nhất trong timezone history của server. Cận DST gap/overlap trả 400; hai cận hợp lệ có thể băng qua chuyển DST. Giữ mapping lịch sử hiện có |
+
+Ví dụ server `America/New_York`: `from=2026-03-08T02:45:00` không tồn tại nên trả 400; khoảng `01:55:00` đến `03:15:00` cùng ngày có hai cận hợp lệ và vẫn lấy được history lúc 03:05. Cận `2026-11-01T01:15:00` bị trùng giờ nên trả 400; khoảng 00:55 đến 02:15 cùng ngày lấy được cả hai occurrence. Error dùng `INVALID_REQUEST`, `retryable=false` và message nêu gap/overlap.
 
 Response envelope giữ quy ước chung, `data` có dạng:
 

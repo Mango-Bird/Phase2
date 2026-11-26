@@ -34,8 +34,13 @@ Selected UNION for this candidate. Full raw samples/plans: [local 100k evidence]
 
 ## Status
 
-- Initial HTTP + 100k experiment: **16/16 PASS**, zero failures/errors/skips.
-- Full local build: **317 tests, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESSFUL; includes explicit JSON OpenAPI and two additional invalid-date cases.
-- Latest expanded HTTP suite: **18/18 PASS** after adding recipient-ownership assertions and one max-page case over 253 owned rows; no production code changed after full build. This adds one test to the final CI total, expected **318**.
-- Harness: **18/18 PASS**. No C11/k6 benchmark was run.
+### Review fix — DST boundaries
+
+`PaymentHistoryDstIntegrationTest` launches the independent production HTTP app on JVM `America/New_York`; parent JVM timezone is unchanged. Legacy-shaped SQL fixtures store `2026-03-08 07:05` and fall `2026-11-01 05:05/06:05`, which that server displays as 03:05 and twice 01:05. Six parameterized invalid-boundary cases cover from/to in spring gaps and fall overlaps. Two positive cases check valid bounds crossing spring/fall transitions, including both occurrences during the overlap. Scope is boundary validation before Timestamp binding; no history data/mapping rewrite.
+
+Focused New York regression: **8/8 PASS**, zero failures/errors/skips. Full local rerun: **326/326 PASS**, zero failures/errors/skips, BUILD SUCCESSFUL. Required CI must run on the final DST-fix head; previous 318-test CI is superseded.
+
+- Full local backend build after DST fix: **326 tests, 0 failures, 0 errors, 0 skipped**, BUILD SUCCESSFUL; JAR built.
+- C08 HTTP **18/18 PASS**, New York DST **8/8 PASS**, 100k OR/UNION experiment **1/1 PASS**. Runtime OpenAPI assertion includes the 400 gap/overlap policy.
+- Harness **18/18 PASS**. No C11/k6 benchmark was run.
 - Candidate SHA, required final-head CI and artifact verification are recorded in PR body; A acceptance remains pending.

@@ -19,7 +19,7 @@ import sa.uet.digitalwallet_system.platform.api.web.ErrorResponse;
         @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="404",description="Owned resource not found",content=@Content(mediaType="application/json",schema=@Schema(implementation=ErrorResponse.class)))})
 public class PaymentHistoryController {
     private final PaymentQueryApi payments;
-    @GetMapping @Operation(summary="Bounded payment history",description="Descending (created_at,id) keyset; limit defaults to 20, maximum 100. type is TOPUP/WITHDRAW/TRANSFER. from inclusive/to exclusive are ISO local history times at millisecond precision. Cursor is bound to wallet and filters; changing limit is allowed. This is a live traversal, not a cross-request snapshot.")
+    @GetMapping @Operation(summary="Bounded payment history",description="Descending (created_at,id) keyset; limit defaults to 20, maximum 100. type is TOPUP/WITHDRAW/TRANSFER. from inclusive/to exclusive are ISO local history times at millisecond precision, uniquely resolvable in the server history timezone. DST gap/overlap boundaries return 400; valid bounds may span a DST transition. Cursor is bound to wallet and filters; changing limit is allowed. This is a live traversal, not a cross-request snapshot.")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode="200",description="Payment slice")
     public ApiResponse<PaymentSlice> history(@AuthenticationPrincipal Long actor,
             @io.swagger.v3.oas.annotations.Parameter(schema=@Schema(maxLength=1024)) @RequestParam(required=false) String cursor,

@@ -39,14 +39,20 @@ public class PaymentHistoryQueryService implements PaymentQueryApi {
     }
     private static LocalDateTime parse(String value) {
         if(value==null) return null;
+        LocalDateTime date;
         try {
             if(value.length()>32) throw new IllegalArgumentException();
-            var date=LocalDateTime.parse(value);
-            int storedYear=date.atZone(java.time.ZoneId.systemDefault()).withZoneSameInstant(java.time.ZoneOffset.UTC).getYear();
-            if(date.getYear()<1000||date.getYear()>9999||storedYear<1000||storedYear>9999||date.getNano()%1_000_000!=0) throw new IllegalArgumentException();
-            return date;
+            date=LocalDateTime.parse(value);
+            if(date.getYear()<1000||date.getYear()>9999||date.getNano()%1_000_000!=0) throw new IllegalArgumentException();
         }
         catch(Exception ex) { throw invalid("Dates must be ISO local date-time with millisecond precision"); }
+        // Timestamp.valueOf normalizes gaps and silently chooses an offset in overlaps.
+        // Require a unique wall time before binding so valid ordered bounds keep their meaning.
+        var offsets=java.time.ZoneId.systemDefault().getRules().getValidOffsets(date);
+        if(offsets.size()!=1) throw invalid("History date is in a daylight-saving gap or overlap in the server history timezone");
+        int storedYear=date.atOffset(offsets.getFirst()).withOffsetSameInstant(java.time.ZoneOffset.UTC).getYear();
+        if(storedYear<1000||storedYear>9999) throw invalid("History date is outside the database range");
+        return date;
     }
     private static PaymentFailure invalid(String message) { return new PaymentFailure("INVALID_REQUEST",message,false); }
     private static PaymentView view(Transaction t) {
