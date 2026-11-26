@@ -38,7 +38,7 @@ class PaymentOutboxIntegrationTest extends PaymentDatabaseHttpTestSupport {
     @ParameterizedTest @ValueSource(strings={"topup","withdraw","transfer"})
     void committedPayloadMatchesHistoryVerifiedRecipientsAndCorrelationAndReplayIsReadOnly(String operation) throws Exception {
         String correlationId=java.util.UUID.randomUUID().toString();
-        // Child JVM is explicitly UTC+7, so UTC CI also detects accidental Timestamp timezone shifts.
+        // Child JVM is explicitly UTC+7: compare the existing public history semantics, not raw DATETIME.
         var request=java.net.http.HttpRequest.newBuilder(request(secondPort,101,operation,"payload",body(operation)).uri())
                 .header("Authorization","Bearer "+token(101)).header("Content-Type","application/json")
                 .header("Idempotency-Key","payload").header("X-Correlation-ID",correlationId)
@@ -59,10 +59,12 @@ class PaymentOutboxIntegrationTest extends PaymentDatabaseHttpTestSupport {
         assertThat(event.sourceUserId()).isEqualTo(operation.equals("topup")?null:101L);
         assertThat(event.targetWalletId()).isEqualTo(operation.equals("withdraw")?null:operation.equals("topup")?11L:22L);
         assertThat(event.targetUserId()).isEqualTo(operation.equals("withdraw")?null:operation.equals("topup")?101L:202L);
-        // Read DATETIME literally: JdbcTemplate's generic Timestamp conversion applies the JVM zone.
-        var historyInstant=java.time.LocalDateTime.parse(jdbc.queryForObject(
-                "SELECT DATE_FORMAT(created_at,'%Y-%m-%dT%H:%i:%s.%f') FROM transactions",String.class)).toInstant(ZoneOffset.UTC);
-        assertThat(event.occurredAt()).isEqualTo(historyInstant);
+        var receiptTime=java.time.LocalDateTime.parse(JSON.readTree(first.body()).path("data").path("createdAt").asText());
+        assertThat(event.occurredAt()).isEqualTo(receiptTime.toInstant(ZoneOffset.UTC));
+        var historyResponse=HTTP.send(java.net.http.HttpRequest.newBuilder(java.net.URI.create("http://localhost:"+secondPort+"/api/v1/transactions"))
+                .header("Authorization","Bearer "+token(101)).GET().build(),HttpResponse.BodyHandlers.ofString());
+        assertThat(historyResponse.statusCode()).isEqualTo(200);
+        assertThat(java.time.LocalDateTime.parse(JSON.readTree(historyResponse.body()).path("data").get(0).path("createdAt").asText())).isEqualTo(receiptTime);
         assertThat(event.correlationId()).isEqualTo(correlationId);
         assertThat(first.headers().firstValue("X-Correlation-ID")).contains(correlationId);
         assertThat(payload).doesNotContain("private description","accountNumber","password","token","idempotency");
