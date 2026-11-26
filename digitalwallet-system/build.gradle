@@ -26,6 +26,8 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-security'
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-flyway'
+	implementation 'org.springframework.boot:spring-boot-starter-actuator'
+	runtimeOnly 'io.micrometer:micrometer-registry-prometheus'
 	// C04 canonical request hashing / strict JSON parsing explicitly use Jackson 2.
 	implementation 'com.fasterxml.jackson.core:jackson-databind'
 	runtimeOnly 'org.flywaydb:flyway-mysql'
@@ -63,6 +65,10 @@ dependencies {
 
 tasks.named('test') {
 	useJUnitPlatform()
+	// Test-process-only signing material. Runtime and deployment configuration still require APP_JWT_SECRET.
+	environment 'APP_JWT_SECRET', 'test-only-signing-key-never-use-in-production-2026'
+	// Avoid a fixed management-port collision when multiple Spring test contexts are created.
+	environment 'MANAGEMENT_SERVER_PORT', '0'
 	// Launch an independent JVM in C04 integration tests, using the same production classes.
 	systemProperty 'c04.production.classpath', sourceSets.main.runtimeClasspath.asPath
 }

@@ -18,7 +18,7 @@ public class JwtTokenService implements TokenIssuer {
 
     public JwtTokenService(@Value("${app.jwt.secret}") String secret,
                            @Value("${app.jwt.expiration-ms}") long expirationMs) {
-        this.secret = secret;
+        this.secret = JwtSecretPolicy.requireValid(secret);
         this.expirationMs = expirationMs;
     }
 

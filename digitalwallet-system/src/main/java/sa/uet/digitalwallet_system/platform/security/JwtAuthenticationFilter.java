@@ -24,7 +24,9 @@ import java.util.List;
 @Slf4j @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final String secret;
-    public JwtAuthenticationFilter(@Value("${app.jwt.secret}") String secret) { this.secret = secret; }
+    public JwtAuthenticationFilter(@Value("${app.jwt.secret}") String secret) {
+        this.secret = JwtSecretPolicy.requireValid(secret);
+    }
 
     @Override protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                               FilterChain chain) throws ServletException, IOException {
