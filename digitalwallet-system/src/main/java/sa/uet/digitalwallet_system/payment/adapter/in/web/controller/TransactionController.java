@@ -119,7 +119,8 @@ public class TransactionController {
     }
 
     @GetMapping
-    @Operation(summary = "Get transaction history", description = "Retrieves all inbound and outbound transactions for the current user's wallet")
+    @Deprecated
+    @Operation(deprecated = true, summary = "Get transaction history", description = "Retrieves all inbound and outbound transactions for the current user's wallet")
     @ApiResponses({
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Transaction history retrieved"),
             @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "401", description = "Not authenticated",

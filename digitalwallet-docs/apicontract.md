@@ -224,7 +224,30 @@ Phản hồi này **không có `newBalance`, `sourceWalletNumber` hoặc `target
 
 Trả `200 OK` với `data` là **mảng `TransactionResponse`** của giao dịch có ví hiện tại ở phía nguồn hoặc đích, sắp xếp `createdAt` giảm dần. Endpoint hiện **không nhận `page`/`size`, không trả `content`/`totalPages` và không có trường `direction`**. Không tìm thấy ví trả `404`.
 
-## 6. Tài liệu API
+## 6. C08-A runtime — history v2
+
+GET `/api/v1/transactions` giữ nguyên full list để tương thích và được đánh deprecated trong OpenAPI. Client mới dùng GET `/api/v2/transactions`; các API GET không dùng Idempotency-Key.
+
+| Query | Quy tắc |
+|---|---|
+| `limit` | Default 20; 1..100 |
+| `cursor` | Opaque URL-safe cursor từ `nextCursor`, tối đa 1024 ký tự; bound wallet và type/from/to; có thể đổi limit |
+| `type` | TOPUP, WITHDRAW hoặc TRANSFER; bỏ trống để lấy cả ba |
+| `from`, `to` | ISO local history time, from inclusive/to exclusive, millisecond precision; from < to; giữ timezone/mapping lịch sử hiện có |
+
+Response envelope giữ quy ước chung, `data` có dạng:
+
+```json
+{"items":[],"nextCursor":null,"hasMore":false}
+```
+
+Item có cùng trường nghiệp vụ với TransactionResponse. Order giảm dần `(created_at,id)`; không total count, OFFSET hoặc page number. Dùng cursor nguyên trạng và cùng filters cho trang sau; đổi filters thì bỏ cursor. Cursor sai/wrong-wallet/filter trả 400; token thiếu/sai trả 401. Live traversal không phải snapshot toàn bộ: rows mới nằm trước cursor chỉ thấy khi refresh; rows backdated nằm sau cursor có thể xuất hiện ở trang sau. Cụm triển khai giữ timezone nhất quán; không coi DATETIME lịch sử là instant UTC mới được chuẩn hóa.
+
+GET `/api/v2/transactions/{referenceCode}` trả một PaymentView nếu caller là bên gửi/nhận. Foreign và nonexistent UUID cùng 404/PAYMENT_NOT_FOUND; UUID malformed trả 400. Không nhận walletId do client chỉ định làm quyền đọc.
+
+Chi tiết nghiệm thu, kế hoạch truy vấn và tương thích: [C08-A-r1](phase2/contracts/C08-A-r1.md).
+
+## 7. Tài liệu API
 
 - Khi chạy backend theo cấu hình mặc định: `GET /v3/api-docs` và giao diện `/swagger-ui.html`.
 - Profile `dev` cấu hình đường dẫn JSON thành `/api-docs`.

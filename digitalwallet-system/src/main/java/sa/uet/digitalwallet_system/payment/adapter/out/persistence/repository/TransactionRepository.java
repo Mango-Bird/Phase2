@@ -9,6 +9,9 @@ import java.util.List;
 
 public interface TransactionRepository extends JpaRepository<TransactionJpaEntity, Long> {
 
+    @Query("SELECT t FROM TransactionJpaEntity t WHERE t.referenceCode=:reference AND (t.sourceWalletId=:walletId OR t.targetWalletId=:walletId)")
+    java.util.Optional<TransactionJpaEntity> findOwnedReference(@Param("walletId") long walletId,@Param("reference") String reference);
+
     @Query("""
             SELECT t FROM TransactionJpaEntity t
             WHERE t.sourceWalletId = :walletId OR t.targetWalletId = :walletId
